@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>DataCo Fulfilment Twin</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an operations control desk. Levers in a sticky left rail, outcomes and their
+   Monte Carlo spread on the right, method notes last. */
+:root {
+  --bg: #f2f4f3;          /* cool paper, faint green-grey bias */
+  --panel: #ffffff;
+  --panel-2: #f8f9f8;
+  --ink: #15191c;
+  --ink-2: #4b5258;
+  --muted: #7a8188;
+  --line: #dde1de;
+  --accent: #2a78d6;      /* your scenario */
+  --accent-soft: rgba(42, 120, 214, 0.16);
+  --ref: #8d949a;         /* no response */
+  --ref-soft: rgba(141, 148, 154, 0.22);
+  --good: #0f7a35;
+  --bad: #b42318;
+  --good-soft: rgba(15, 122, 53, 0.10);
+  --bad-soft: rgba(180, 35, 24, 0.09);
+  --grid: #e4e7e4;
+  --focus: #2a78d6;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111416; --panel: #191d20; --panel-2: #1e2226; --ink: #eceff1; --ink-2: #b4bbc1; --muted: #858c93;
+    --line: #2b3034; --accent: #4a92ea; --accent-soft: rgba(74, 146, 234, 0.22); --ref: #7e868d;
+    --ref-soft: rgba(126, 134, 141, 0.25); --good: #3cbf68; --bad: #f2705f; --good-soft: rgba(60, 191, 104, 0.12);
+    --bad-soft: rgba(242, 112, 95, 0.12); --grid: #262b2f; --focus: #6aa7f0; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111416; --panel: #191d20; --panel-2: #1e2226; --ink: #eceff1; --ink-2: #b4bbc1; --muted: #858c93;
+  --line: #2b3034; --accent: #4a92ea; --accent-soft: rgba(74, 146, 234, 0.22); --ref: #7e868d;
+  --ref-soft: rgba(126, 134, 141, 0.25); --good: #3cbf68; --bad: #f2705f; --good-soft: rgba(60, 191, 104, 0.12);
+  --bad-soft: rgba(242, 112, 95, 0.12); --grid: #262b2f; --focus: #6aa7f0; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1320px; margin: 0 auto; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+.num, .mono { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--f-mono); }
+
+/* ---- header ---- */
+header.top { padding-block: 28px 18px; display: grid; gap: 10px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1; letter-spacing: 0.005em; }
+.lede { color: var(--ink-2); max-width: 70ch; margin: 0; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.fact { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); background: var(--panel);
+        border-radius: 999px; padding: 3px 10px; }
+
+/* ---- main grid ---- */
+.desk { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 980px) { .desk { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- controls ---- */
+aside.levers { position: sticky; top: max(16px, env(safe-area-inset-top, 0px)); background: var(--panel); border: 1px solid var(--line);
+               border-radius: var(--r); padding: 16px; display: grid; gap: 18px; max-height: calc(100vh - 32px); overflow-y: auto; }
+@media (max-width: 980px) { aside.levers { position: static; max-height: none; } }
+.group { display: grid; gap: 12px; }
+.group + .group { border-top: 1px solid var(--line); padding-top: 16px; }
+.group-title { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 12.5px/1.2 var(--f-body); color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line);
+        border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.field { display: grid; gap: 6px; }
+.field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.field label, .field .label { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.field output { font-family: var(--f-mono); font-size: 13px; color: var(--accent); white-space: nowrap; }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 500 12.5px/1.25 var(--f-body); color: var(--ink-2); background: var(--panel-2); border: 0; padding: 7px 6px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--ink); }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.thresholds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.thresholds label { font-size: 11.5px; color: var(--ink-2); display: grid; gap: 4px; }
+.thresholds input { width: 100%; font: 500 13px var(--f-mono); color: var(--ink); background: var(--panel-2);
+                    border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; }
+select { font: 500 13px var(--f-body); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line);
+         border-radius: 6px; padding: 6px 8px; width: 100%; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- results ---- */
+main.out { display: grid; gap: 18px; min-width: 0; }
+.runbar { display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--muted); font-family: var(--f-mono); flex-wrap: wrap; }
+.meter { flex: 1 1 160px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; min-width: 120px; }
+.meter > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 120ms linear; }
+.verdict { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px;
+           display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; }
+.badge { font: 600 11.5px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 8px; border-radius: 6px;
+         background: var(--panel-2); color: var(--ink-2); border: 1px solid var(--line); white-space: nowrap; }
+.badge.good { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.badge.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.verdict p { margin: 0; color: var(--ink); max-width: 90ch; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1180px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px) { .tiles { grid-template-columns: minmax(0, 1fr); } }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.tile .k { font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+.tile .v { font-family: var(--f-display); font-weight: 600; font-size: 38px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.tile .v small { font-size: 20px; font-weight: 500; color: var(--ink-2); margin-left: 3px; }
+.tile .range { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); }
+.tile .d { font-family: var(--f-mono); font-size: 12px; }
+.d.good { color: var(--good); } .d.bad { color: var(--bad); } .d.flat { color: var(--muted); }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.card h2 { font-family: var(--f-display); font-weight: 600; font-size: 24px; line-height: 1.1; letter-spacing: 0.01em; }
+.card .sub { color: var(--ink-2); font-size: 13.5px; margin: 0; max-width: 80ch; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 760px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+.chart { position: relative; height: 260px; min-width: 0; }
+.chart.tall { height: 300px; }
+.chart-title { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.chart-note { font-size: 12.5px; color: var(--muted); margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+.sw.box { height: 10px; width: 10px; border-radius: 2px; }
+
+.section-head { display: grid; gap: 4px; margin-top: 8px; }
+.section-head h2 { font-family: var(--f-display); font-weight: 700; font-size: 30px; line-height: 1.05; }
+.section-head p { margin: 0; color: var(--ink-2); max-width: 78ch; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 11.5px var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+th.n { text-align: right; }
+.bar-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.pbar { width: 64px; height: 6px; background: var(--grid); border-radius: 3px; overflow: hidden; flex: none; }
+.pbar > i { display: block; height: 100%; background: var(--accent); }
+.pbar.ref > i { background: var(--ref); }
+@media (max-width: 560px) { .pbar { display: none; } th, td { padding: 8px 6px; } }
+
+.method { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 900px) { .method { grid-template-columns: minmax(0, 1fr); } }
+.method h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.method p, .method li { font-size: 13.5px; color: var(--ink-2); margin: 0; }
+.method ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+footer.foot { margin-top: 28px; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+footer.foot a { color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { .meter > i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Discrete-event simulation · Monte Carlo · DataCo supply chain</div>
+    <h1>DataCo Fulfilment Twin</h1>
+    <p class="lede">Test what a promotion does to delivery performance before you run it. Each Monte Carlo run simulates a year of orders, one by one, through dispatch and transit. Hundreds of runs show the spread of outcomes, not just the average.</p>
+    <div class="facts" id="facts"></div>
+  </header>
+
+  <div class="desk">
+    <aside class="levers" aria-label="Scenario settings">
+      <div class="group">
+        <div class="group-title">Start from</div>
+        <div class="presets" id="presets"></div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Promotion</div>
+        <div class="field">
+          <div class="field-head"><label for="promoMult">Demand during promotion</label><output id="promoMultOut" for="promoMult"></output></div>
+          <input type="range" id="promoMult" min="1" max="3" step="0.25">
+          <p class="hint">1.0× = no promotion. Normal demand: 54.6 shipped orders a day.</p>
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="promoDays">Promotion length</label><output id="promoDaysOut" for="promoDays"></output></div>
+          <input type="range" id="promoDays" min="7" max="28" step="7">
+        </div>
+        <label class="check"><input type="checkbox" id="spread"> Spread the same extra volume over twice as many days</label>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Capacity</div>
+        <div class="field">
+          <div class="field-head"><label for="capacity">Normal dispatch capacity</label><output id="capacityOut" for="capacity"></output></div>
+          <input type="range" id="capacity" min="56" max="120" step="2">
+          <p class="hint">64 = busiest day observed, the highest level the data shows being handled.</p>
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="surge">Surge during promotion</label><output id="surgeOut" for="surge"></output></div>
+          <input type="range" id="surge" min="0" max="100" step="10">
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Customer promise</div>
+        <div class="field">
+          <span class="label" id="policyLabel">Promise policy</span>
+          <div class="seg" role="group" aria-labelledby="policyLabel" id="policy">
+            <button type="button" data-v="current">Today</button>
+            <button type="button" data-v="0.75">Met 75%</button>
+            <button type="button" data-v="0.9">Met 90%</button>
+          </div>
+          <p class="hint" id="policyHint"></p>
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="extra">Extra days quoted on promo orders</label><output id="extraOut" for="extra"></output></div>
+          <input type="range" id="extra" min="0" max="5" step="1">
+        </div>
+        <div class="field">
+          <span class="label" id="ruleLabel">When there is a backlog, ship</span>
+          <div class="seg" role="group" aria-labelledby="ruleLabel" id="rule">
+            <button type="button" data-v="FIFO">Oldest first</button>
+            <button type="button" data-v="PREMIUM_FIRST">Premium first</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Monte Carlo</div>
+        <div class="field">
+          <label for="reps">Runs per scenario</label>
+          <select id="reps">
+            <option value="100">100 simulated years</option>
+            <option value="300" selected>300 simulated years</option>
+            <option value="500">500 simulated years</option>
+            <option value="1000">1,000 simulated years</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="label">Risk thresholds</span>
+          <div class="thresholds">
+            <label>On-time target %<input type="number" id="tOnTime" min="0" max="100" step="1" value="40"></label>
+            <label>Backlog limit<input type="number" id="tBacklog" min="0" step="10" value="150"></label>
+            <label>Clear within (days)<input type="number" id="tClear" min="1" step="1" value="30"></label>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="out" aria-live="polite">
+      <div class="runbar"><span id="runText">Starting…</span><div class="meter" aria-hidden="true"><i id="meter"></i></div></div>
+      <div class="verdict"><span class="badge" id="badge">Running</span><p id="verdict">Simulating…</p></div>
+      <div class="tiles" id="tiles"></div>
+
+      <section class="card" aria-labelledby="mcTitle">
+        <h2 id="mcTitle">Monte Carlo: how wide is the range of outcomes?</h2>
+        <p class="sub" id="mcSub">Each bar counts simulated years. The same random demand days and lead times are used for your scenario and for doing nothing, so every run gives a fair head-to-head.</p>
+        <div class="pair">
+          <div>
+            <div class="chart-title">On-time delivery across runs</div>
+            <div class="legend"><span><i class="sw box" style="background:var(--accent)"></i>Your scenario</span><span><i class="sw box" style="background:var(--ref)"></i>No response</span><span><i class="sw" style="background:var(--ink-2)"></i>Target</span></div>
+            <div class="chart"><canvas id="cHist" aria-label="Histogram of on-time delivery rate across Monte Carlo runs"></canvas></div>
+          </div>
+          <div>
+            <div class="chart-title">Gain over doing nothing, run by run</div>
+            <p class="chart-note" id="diffNote"></p>
+            <div class="chart"><canvas id="cDiff" aria-label="Histogram of paired on-time difference"></canvas></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Risk question</th><th class="n">Your scenario</th><th class="n">No response</th></tr></thead>
+            <tbody id="riskBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="fanTitle">
+        <h2 id="fanTitle">Dispatch backlog over time</h2>
+        <p class="sub">Orders waiting for a dispatch slot. Lines show the median run; bands cover the middle 80% of runs.</p>
+        <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>Your scenario</span><span><i class="sw" style="background:var(--ref)"></i>No response</span></div>
+        <div class="chart tall"><canvas id="cFan" aria-label="Backlog fan chart"></canvas></div>
+      </section>
+
+      <div class="pair">
+        <section class="card" aria-labelledby="modeTitle">
+          <h2 id="modeTitle">On time by shipping mode</h2>
+          <p class="sub">First Class takes 2 days against a 1-day promise, so it is only on time when extra days are quoted.</p>
+          <div class="legend"><span><i class="sw box" style="background:var(--accent)"></i>Your scenario</span><span><i class="sw box" style="background:var(--ref)"></i>No response</span></div>
+          <div class="chart"><canvas id="cMode" aria-label="On-time rate by shipping mode"></canvas></div>
+        </section>
+        <section class="card" aria-labelledby="convTitle">
+          <h2 id="convTitle">Convergence</h2>
+          <p class="sub">Running average of on-time delivery as runs accumulate, with its 95% confidence band. A flat line means enough runs.</p>
+          <div class="chart"><canvas id="cConv" aria-label="Monte Carlo convergence chart"></canvas></div>
+        </section>
+      </div>
+
+      <div class="section-head"><h2>How the twin works</h2><p>Built from the same data and rules as the Python model in <span class="mono">simulation/</span>.</p></div>
+      <section class="card method">
+        <div>
+          <h3>Flow per order</h3>
+          <ul>
+            <li>Each day resamples a real day's order count (Oct 2016 – Sep 2017) and applies the promotion multiplier.</li>
+            <li>Every order gets a shipping mode from the real mix and a lead time from that mode's real distribution.</li>
+            <li>Once a day the warehouse ships up to its capacity, oldest first or premium modes first.</li>
+            <li>On time = days waiting + lead time ≤ promised days.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Checks</h3>
+          <ul>
+            <li>With no promotion the Python twin reproduces history within 0.25 percentage points (30 runs).</li>
+            <li>This browser engine matches the Python results on all 37 cross-checks: 12 promotion scenarios plus baseline, 500 runs each (<span class="mono">web/check_model.js</span>).</li>
+            <li>11 automated tests cover extreme conditions: zero demand, zero or unlimited capacity, order conservation.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Assumptions to keep in mind</h3>
+          <ul>
+            <li>Capacity is not in the data. 64 orders/day is the busiest day observed; treat higher values as what-ifs.</li>
+            <li>Warehouse and carrier are one dispatch stage, and lead times don't stretch under load, so promotion results are likely optimistic.</li>
+            <li>Customers don't cancel when delivery slows. The source dataset looks partly simulated.</li>
+          </ul>
+        </div>
+      </section>
+      <footer class="foot">
+        <span>Data: DataCo Smart Supply Chain (Constante, Silva &amp; Pereira, 2019), CC BY 4.0</span>
+        <a href="https://github.com/Daniel766hi/supply-chain-delivery-risk" target="_blank" rel="noopener">Source code and SQL analysis on GitHub</a>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+/* Generated by web/build.py from simulation/inputs/*.csv - do not edit. */
+(function (root) {
+  var CAL = {"modes":["Same Day","First Class","Second Class","Standard Class"],"modeMix":[0.054725,0.152488,0.193419,0.599368],"currentPromise":{"Same Day":0,"First Class":1,"Second Class":2,"Standard Class":4},"leadDays":{"Same Day":[0,1],"First Class":[2],"Second Class":[2,3,4,5,6],"Standard Class":[2,3,4,5,6]},"leadCdf":{"Same Day":[0.496792,1.0],"First Class":[1.0],"Second Class":[0.20332,0.400415,0.602438,0.800571,1.0],"Standard Class":[0.204536,0.402879,0.604653,0.802159,1.0]},"dailyDemand":[56,55,54,57,48,58,50,60,47,57,58,51,56,62,59,49,56,51,54,56,57,58,54,56,55,58,54,48,56,58,55,56,60,57,55,52,56,62,49,50,46,59,51,53,54,47,49,60,55,61,57,55,57,55,49,57,54,53,54,57,59,52,52,54,55,57,58,54,55,57,55,53,58,58,47,53,53,56,54,54,56,55,53,57,52,57,52,58,54,52,55,54,45,56,54,56,54,53,59,61,54,51,55,58,56,52,56,55,49,59,57,58,57,48,47,54,57,56,50,59,51,53,55,53,53,58,54,56,57,51,60,54,55,49,52,57,47,57,56,55,58,53,51,61,55,52,58,57,58,54,57,54,54,56,56,55,52,55,53,54,64,48,54,58,51,51,59,52,58,56,57,51,61,59,51,55,54,49,59,61,57,56,58,55,57,55,53,54,58,56,61,55,59,59,52,54,58,50,58,54,56,49,53,63,57,56,53,58,57,51,51,56,52,58,49,53,60,58,55,56,54,54,54,47,55,52,56,56,50,50,60,50,47,55,56,53,60,50,56,47,53,58,58,57,59,57,56,49,52,56,52,48,50,63,52,57,50,48,53,49,48,48,51,55,58,58,52,55,56,56,54,56,50,51,55,60,50,59,55,53,55,52,48,57,52,57,48,57,55,54,61,55,55,57,59,53,58,57,51,54,57,52,54,52,56,56,58,58,59,57,52,53,55,55,56,54,48,52,55,53,54,52,46,50,58,59,58,54,50,57,55,55,62,57,51,52,56,54,50,62,54,55,53,54,54,59,57,54,55,54,56,58,51,54,55,57,52,56,56,54,57,41,56,56,58],"observedPeak":64,"calibrationOrders":19936,"calibrationPeriod":"Oct 2016 - Sep 2017"};
+  if (typeof module === 'object' && module.exports) module.exports = CAL;
+  else root.TWIN_CALIBRATION = CAL;
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+/* Fulfilment digital twin + Monte Carlo engine (browser and Node).
+ *
+ * A JavaScript port of simulation/twin/model.py. Same flow, same rules:
+ *   order placed -> dispatch backlog -> dispatched (<= capacity per day) -> transit -> delivered
+ * Day-stepped event loop: within a day, orders arrive first, then the
+ * dispatcher releases up to capacity (FIFO, or premium modes first).
+ * On time  <=>  (dispatch day - order day) + lead time <= promised days.
+ *
+ * Random numbers: three independent streams per replication (demand, mode,
+ * lead time) seeded from the replication number, so scenarios that share a
+ * replication number see the same demand and lead-time draws (common random
+ * numbers). The generator differs from NumPy's, so individual runs differ
+ * from the Python model; distributions agree (see web/check_model.js).
+ */
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) module.exports = factory();
+  else root.DataCoTwin = factory();
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  // ---- random numbers: splitmix32 seeding + sfc32 generator ------------------
+  function splitmix32(a) {
+    return function () {
+      a |= 0; a = (a + 0x9e3779b9) | 0;
+      let t = a ^ (a >>> 16); t = Math.imul(t, 0x21f0aaad);
+      t ^= t >>> 15; t = Math.imul(t, 0x735a2d97);
+      return ((t ^= t >>> 15) >>> 0);
+    };
+  }
+  function stream(seed, id) {
+    const s = splitmix32((seed * 2654435761) ^ (id * 40503));
+    let a = s(), b = s(), c = s(), d = s();
+    const next = function () {
+      a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+      let t = (a + b) | 0;
+      a = b ^ (b >>> 9); b = (c + (c << 3)) | 0;
+      c = (c << 21) | (c >>> 11); d = (d + 1) | 0;
+      t = (t + d) | 0; c = (c + t) | 0;
+      return (t >>> 0) / 4294967296;
+    };
+    for (let i = 0; i < 12; i++) next();   // discard warm-up draws
+    return next;
+  }
+
+  // ---- scenario --------------------------------------------------------------
+  const DEFAULTS = {
+    horizon: 365,
+    promise: null,              // {mode: days}; null = today's promises
+    capacityFactor: 1.0,        // x busiest observed day; null = unlimited
+    promoStart: 30,
+    promoDays: 0,
+    promoMult: 1.0,
+    promoCapFactor: 1.0,        // surge on promotion days
+    promoExtraDays: 0,          // extra days quoted on promotion orders
+    rule: "FIFO",               // or "PREMIUM_FIRST"
+    windowStart: 30,
+    windowDays: 60,
+  };
+  function scenario(over) { return Object.assign({}, DEFAULTS, over || {}); }
+
+  function promiseForTarget(cal, target) {
+    const out = {};
+    cal.modes.forEach(function (m) {
+      const cdf = cal.leadCdf[m];
+      let j = 0;
+      while (j < cdf.length - 1 && cdf[j] < target - 1e-9) j++;
+      out[m] = cal.leadDays[m][j];
+    });
+    return out;
+  }
+
+  // ---- one replication -----------------------------------------------------
+  function runOnce(sc, cal, seed, keepPath) {
+    const rD = stream(seed, 1), rM = stream(seed, 2), rL = stream(seed, 3);
+    const modes = cal.modes, nModes = modes.length;
+    const promiseDays = modes.map(function (m) { return (sc.promise || cal.currentPromise)[m]; });
+    const mixCum = []; cal.modeMix.reduce(function (acc, p, i) { mixCum[i] = acc + p; return acc + p; }, 0);
+    mixCum[nModes - 1] = 1;
+    const daily = cal.dailyDemand, nDaily = daily.length;
+    const capBase = sc.capacityFactor == null ? Infinity : cal.observedPeak * sc.capacityFactor;
+    const promoEnd = sc.promoStart + sc.promoDays;
+    const total = sc.horizon + 10;           // let the backlog drain after demand stops
+
+    const placed = [], mode = [], lead = [], promise = [], disp = [];
+    const premium = sc.rule === "PREMIUM_FIRST";
+    const queues = premium ? modes.map(function () { return { a: [], h: 0 }; }) : [{ a: [], h: 0 }];
+    const path = new Int32Array(total);
+    let queued = 0;
+
+    for (let day = 0; day < total; day++) {
+      const inPromo = day >= sc.promoStart && day < promoEnd;
+      if (day < sc.horizon) {
+        const mult = inPromo ? sc.promoMult : 1;
+        const n = Math.round(daily[Math.floor(rD() * nDaily)] * mult);
+        const isPromo = mult !== 1;
+        for (let k = 0; k < n; k++) {
+          const u = rM();
+          let m = 0; while (m < nModes - 1 && u >= mixCum[m]) m++;
+          const ul = rL(), cdf = cal.leadCdf[modes[m]];
+          let j = 0; while (j < cdf.length - 1 && cdf[j] < ul) j++;
+          const id = placed.length;
+          placed.push(day); mode.push(m); lead.push(cal.leadDays[modes[m]][j]);
+          promise.push(promiseDays[m] + (isPromo ? sc.promoExtraDays : 0)); disp.push(-1);
+          queues[premium ? m : 0].a.push(id); queued++;
+        }
+      }
+      let cap = capBase === Infinity ? Infinity : Math.round(capBase * (inPromo ? sc.promoCapFactor : 1));
+      for (let q = 0; q < queues.length && cap > 0; q++) {
+        const Q = queues[q];
+        while (cap > 0 && Q.h < Q.a.length) { disp[Q.a[Q.h++]] = day; cap--; queued--; }
+      }
+      path[day] = queued;
+    }
+
+    // metrics over orders placed in the measurement window
+    const lo = sc.windowStart, hi = sc.windowStart + sc.windowDays;
+    let n = 0, ok = 0, waitSum = 0, nDisp = 0;
+    const modeN = new Array(nModes).fill(0), modeOk = new Array(nModes).fill(0);
+    for (let i = 0; i < placed.length; i++) {
+      if (placed[i] < lo || placed[i] >= hi) continue;
+      n++; modeN[mode[i]]++;
+      if (disp[i] >= 0) {
+        nDisp++; waitSum += disp[i] - placed[i];
+        if (disp[i] - placed[i] + lead[i] <= promise[i]) { ok++; modeOk[mode[i]]++; }
+      }
+    }
+    let peak = 0, lastBusy = -1;
+    for (let d = 0; d < total; d++) {
+      if (path[d] > peak) peak = path[d];
+      if (d >= sc.promoStart && path[d] > 0) lastBusy = d;
+    }
+    const clear = lastBusy < 0 ? 0 : (path[total - 1] > 0 ? NaN : lastBusy + 1 - sc.promoStart);
+
+    return {
+      onTime: n ? ok / n : NaN,
+      byMode: modeN.map(function (c, i) { return c ? modeOk[i] / c : NaN; }),
+      wait: nDisp ? waitSum / nDisp : NaN,
+      peak: peak,
+      clear: clear,
+      orders: n,
+      path: keepPath ? path : null,
+    };
+  }
+
+  // ---- Monte Carlo -----------------------------------------------------------
+  // Runs `reps` paired replications of several scenarios in small batches,
+  // yielding to the browser between batches. onProgress(done, reps) after each
+  // batch; isCancelled() lets a newer request stop an older one.
+  function monteCarlo(scenarios, cal, reps, opts) {
+    opts = opts || {};
+    const batch = opts.batch || 20, firstSeed = opts.firstSeed || 1000;
+    const out = {};
+    Object.keys(scenarios).forEach(function (k) { out[k] = []; });
+    return new Promise(function (resolve) {
+      let i = 0;
+      function step() {
+        if (opts.isCancelled && opts.isCancelled()) return resolve(null);
+        const end = Math.min(reps, i + batch);
+        for (; i < end; i++) {
+          Object.keys(scenarios).forEach(function (k) {
+            out[k].push(runOnce(scenarios[k], cal, firstSeed + i, opts.keepPaths !== false));
+          });
+        }
+        if (opts.onProgress) opts.onProgress(i, reps);
+        if (i < reps) (opts.schedule || setTimeout)(step, 0);
+        else resolve(out);
+      }
+      step();
+    });
+  }
+
+  // ---- statistics ------------------------------------------------------------
+  function finite(xs) { return xs.filter(function (x) { return Number.isFinite(x); }); }
+  function mean(xs) { xs = finite(xs); return xs.length ? xs.reduce(function (a, b) { return a + b; }, 0) / xs.length : NaN; }
+  function sd(xs) {
+    xs = finite(xs); if (xs.length < 2) return NaN;
+    const m = mean(xs); return Math.sqrt(xs.reduce(function (a, x) { return a + (x - m) * (x - m); }, 0) / (xs.length - 1));
+  }
+  function quantile(xs, q) {
+    xs = finite(xs).slice().sort(function (a, b) { return a - b; });
+    if (!xs.length) return NaN;
+    const pos = (xs.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo);
+  }
+  function ci95(xs) {
+    const n = finite(xs).length;
+    return n > 1 ? 1.96 * sd(xs) / Math.sqrt(n) : NaN;   // normal approx; reps >= 30
+  }
+  function share(xs, pred) {
+    const f = xs.filter(function (x) { return !Number.isNaN(x); });
+    return xs.length ? xs.filter(pred).length / xs.length : NaN;
+  }
+  // Paired t statistic -> two-sided p-value (normal approximation, n >= 30)
+  function pairedP(a, b) {
+    const d = a.map(function (x, i) { return x - b[i]; });
+    const s = sd(d);
+    if (!(s > 0)) return NaN;
+    const z = Math.abs(mean(d) / (s / Math.sqrt(d.length)));
+    return 2 * (1 - normCdf(z));
+  }
+  function normCdf(z) {
+    const t = 1 / (1 + 0.2316419 * z);
+    const p = 0.3989423 * Math.exp(-z * z / 2) *
+      t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return 1 - p;
+  }
+
+  return {
+    scenario: scenario, runOnce: runOnce, monteCarlo: monteCarlo, promiseForTarget: promiseForTarget,
+    stats: { mean: mean, sd: sd, quantile: quantile, ci95: ci95, share: share, pairedP: pairedP },
+  };
+});
+
+</script>
+<script>
+(function () {
+  "use strict";
+  const T = window.DataCoTwin, CAL = window.TWIN_CALIBRATION, S = T.stats;
+  const PROMO_START = 30, WINDOW = 60, HORIZON = 365, BASE_REPS = 100;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------------------------------------------------------------- presets
+  const PRESETS = {
+    "Normal operations":       { promoMult: 1, promoDays: 14, spread: false, capacity: 64, surge: 0,  policy: "current", extra: 0, rule: "FIFO" },
+    "1.5× promo, no response": { promoMult: 1.5, promoDays: 14, spread: false, capacity: 64, surge: 0, policy: "current", extra: 0, rule: "FIFO" },
+    "1.5× promo, surge +50%":  { promoMult: 1.5, promoDays: 14, spread: false, capacity: 64, surge: 50, policy: "current", extra: 0, rule: "FIFO" },
+    "2× promo, surge +50%":    { promoMult: 2, promoDays: 14, spread: false, capacity: 64, surge: 50, policy: "current", extra: 0, rule: "FIFO" },
+    "2× promo, surge + quote": { promoMult: 2, promoDays: 14, spread: false, capacity: 64, surge: 50, policy: "current", extra: 3, rule: "FIFO" },
+    "2× promo, premium first": { promoMult: 2, promoDays: 14, spread: false, capacity: 64, surge: 0, policy: "current", extra: 0, rule: "PREMIUM_FIRST" },
+    "Realistic promises":      { promoMult: 1, promoDays: 14, spread: false, capacity: 64, surge: 0, policy: "0.75", extra: 0, rule: "FIFO" },
+  };
+  let state = Object.assign({}, PRESETS["2× promo, surge +50%"]);
+
+  const fmtPct = (x, d = 1) => Number.isFinite(x) ? (100 * x).toFixed(d) + "%" : "–";
+  const fmtInt = (x) => Number.isFinite(x) ? Math.round(x).toLocaleString("en-US") : "–";
+
+  $("facts").innerHTML = [
+    `${CAL.calibrationOrders.toLocaleString("en-US")} orders, ${CAL.calibrationPeriod}`,
+    `Promises: Same Day 0d · First 1d · Second 2d · Standard 4d`,
+    `Busiest day: ${CAL.observedPeak} orders`,
+  ].map((t) => `<span class="fact">${t}</span>`).join("");
+
+  // ---------------------------------------------------------------- controls
+  const presetBox = $("presets");
+  Object.keys(PRESETS).forEach((name) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = name; b.dataset.name = name;
+    b.addEventListener("click", () => { state = Object.assign({}, PRESETS[name]); syncControls(); schedule(); });
+    presetBox.appendChild(b);
+  });
+
+  const ranges = [
+    ["promoMult", (v) => `${(+v).toFixed(2).replace(/0$/, "")}×`],
+    ["promoDays", (v) => `${v} days`],
+    ["capacity", (v) => `${v} orders/day`],
+    ["surge", (v) => (+v ? `+${v}%` : "none")],
+    ["extra", (v) => (+v ? `+${v} days` : "none")],
+  ];
+  const keyOf = { promoMult: "promoMult", promoDays: "promoDays", capacity: "capacity", surge: "surge", extra: "extra" };
+  ranges.forEach(([id, fmt]) => {
+    $(id).addEventListener("input", (e) => { state[keyOf[id]] = +e.target.value; $(id + "Out").textContent = fmt(e.target.value); markPreset(); schedule(); });
+  });
+  $("spread").addEventListener("change", (e) => { state.spread = e.target.checked; markPreset(); schedule(); });
+  function segment(id, key) {
+    $(id).querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      state[key] = b.dataset.v; syncControls(); schedule();
+    }));
+  }
+  segment("policy", "policy"); segment("rule", "rule");
+  ["reps", "tOnTime", "tBacklog", "tClear"].forEach((id) => $(id).addEventListener("change", () => {
+    if (id === "reps") schedule(); else if (last) render(last);
+  }));
+
+  function policyPromise(p) { return p === "current" ? null : T.promiseForTarget(CAL, +p); }
+  function syncControls() {
+    ranges.forEach(([id, fmt]) => { $(id).value = state[keyOf[id]]; $(id + "Out").textContent = fmt(state[keyOf[id]]); });
+    $("spread").checked = state.spread;
+    $("policy").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.policy)));
+    $("rule").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.rule)));
+    const p = policyPromise(state.policy) || CAL.currentPromise;
+    $("policyHint").textContent = `Same Day ${p["Same Day"]}d · First ${p["First Class"]}d · Second ${p["Second Class"]}d · Standard ${p["Standard Class"]}d`;
+    markPreset();
+  }
+  function markPreset() {
+    presetBox.querySelectorAll(".chip").forEach((b) => {
+      const p = PRESETS[b.dataset.name];
+      b.setAttribute("aria-pressed", String(Object.keys(p).every((k) => p[k] === state[k])));
+    });
+  }
+
+  // ---------------------------------------------------------------- scenarios
+  function buildScenarios() {
+    const capF = state.capacity / CAL.observedPeak;
+    const promoDays = state.spread ? state.promoDays * 2 : state.promoDays;
+    const promoMult = state.spread ? 1 + (state.promoMult - 1) / 2 : state.promoMult;
+    const common = { horizon: HORIZON, promoStart: PROMO_START, windowStart: PROMO_START, windowDays: WINDOW, capacityFactor: capF };
+    return {
+      scenario: T.scenario(Object.assign({}, common, {
+        promise: policyPromise(state.policy), promoDays, promoMult, promoCapFactor: 1 + state.surge / 100,
+        promoExtraDays: state.extra, rule: state.rule })),
+      reference: T.scenario(Object.assign({}, common, { promoDays: state.promoDays, promoMult: state.promoMult })),
+      normal: T.scenario(Object.assign({}, common, { capacityFactor: 1, promoDays: 0, promoMult: 1 })),
+    };
+  }
+  function sameAsReference() {
+    return state.surge === 0 && state.extra === 0 && state.rule === "FIFO" && state.policy === "current" && !state.spread;
+  }
+
+  // ---------------------------------------------------------------- run
+  let runId = 0, timer = null, last = null;
+  function schedule() { clearTimeout(timer); timer = setTimeout(run, 250); }
+  async function run() {
+    const id = ++runId, reps = +$("reps").value, sc = buildScenarios();
+    const t0 = performance.now();
+    $("runText").textContent = `Simulating ${reps} years per scenario…`;
+    const res = await T.monteCarlo({ scenario: sc.scenario, reference: sc.reference }, CAL, reps, {
+      batch: 25, isCancelled: () => id !== runId,
+      onProgress: (d, n) => { if (id === runId) $("meter").style.width = (100 * d / n) + "%"; },
+    });
+    if (!res) return;
+    const base = await T.monteCarlo({ normal: sc.normal }, CAL, BASE_REPS, { batch: 50, keepPaths: false, isCancelled: () => id !== runId });
+    if (!base) return;
+    const secs = (performance.now() - t0) / 1000;
+    last = { res, base, reps, secs, sc };
+    $("runText").textContent = `${reps} simulated years per scenario · paired runs · ${secs.toFixed(1)} s`;
+    render(last);
+  }
+
+  // ---------------------------------------------------------------- render
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const charts = {};
+  function chart(id, cfg) { if (charts[id]) charts[id].destroy(); charts[id] = new Chart($(id), cfg); }
+  const vlines = {
+    id: "vlines",
+    afterDatasetsDraw(c, _, opts) {
+      (opts.lines || []).forEach((l) => {
+        const x = c.scales.x.getPixelForValue(l.at); if (!Number.isFinite(x)) return;
+        const ctx = c.ctx; ctx.save(); ctx.strokeStyle = l.color; ctx.lineWidth = 1.5; ctx.setLineDash(l.dash || []);
+        ctx.beginPath(); ctx.moveTo(x, c.chartArea.top); ctx.lineTo(x, c.chartArea.bottom); ctx.stroke();
+        if (l.label) { ctx.fillStyle = l.color; ctx.font = `500 11px ${css("--f-mono")}`; ctx.textAlign = x > c.chartArea.right - 90 ? "right" : "left";
+          ctx.fillText(l.label, x + (ctx.textAlign === "left" ? 5 : -5), c.chartArea.top + 11); }
+        ctx.restore();
+      });
+    },
+  };
+  function baseOpts(extra) {
+    const ink2 = css("--ink-2"), grid = css("--grid"), line = css("--line");
+    Chart.defaults.font.family = css("--f-body"); Chart.defaults.color = ink2;
+    return Object.assign({
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: css("--panel"), titleColor: css("--ink"), bodyColor: css("--ink"), borderColor: line, borderWidth: 1,
+                   padding: 10, boxPadding: 4, titleFont: { family: css("--f-mono"), weight: "500" }, bodyFont: { family: css("--f-mono") } },
+      },
+      scales: {
+        x: { grid: { display: false }, border: { color: line }, ticks: { color: ink2, font: { family: css("--f-mono"), size: 11 }, maxRotation: 0, autoSkipPadding: 12 } },
+        y: { grid: { color: grid }, border: { display: false }, ticks: { color: ink2, font: { family: css("--f-mono"), size: 11 } }, beginAtZero: true },
+      },
+    }, extra || {});
+  }
+
+  function histogram(series, lo, hi, bins) {
+    const w = (hi - lo) / bins || 1, counts = series.map(() => new Array(bins).fill(0));
+    series.forEach((xs, s) => xs.forEach((x) => { if (!Number.isFinite(x)) return; let b = Math.floor((x - lo) / w); if (b >= bins) b = bins - 1; if (b < 0) b = 0; counts[s][b]++; }));
+    return { w, counts, centers: Array.from({ length: bins }, (_, i) => lo + w * (i + 0.5)) };
+  }
+
+  function tile(k, v, unit, range, delta, cls) {
+    return `<div class="tile"><div class="k">${k}</div><div class="v num">${v}<small>${unit}</small></div>
+      <div class="range">${range}</div><div class="d ${cls}">${delta}</div></div>`;
+  }
+  function deltaText(diff, unit, higherIsBetter, digits) {
+    if (sameAsReference()) return ["Same as no response", "flat"];
+    if (!Number.isFinite(diff)) return ["", "flat"];
+    const tiny = Math.abs(diff) < Math.pow(10, -digits) / 2;
+    const cls = tiny ? "flat" : ((diff > 0) === higherIsBetter ? "good" : "bad");
+    return [`${diff > 0 ? "▲ +" : diff < 0 ? "▼ " : ""}${diff.toFixed(digits)}${unit} vs no response`, cls];
+  }
+
+  function render(L) {
+    const { res, base, reps } = L;
+    const R = res.scenario, C = res.reference;
+    const on = R.map((r) => r.onTime), onC = C.map((r) => r.onTime);
+    const diff = on.map((x, i) => x - onC[i]);
+    const peak = R.map((r) => r.peak), peakC = C.map((r) => r.peak);
+    const clear = R.map((r) => r.clear), clearC = C.map((r) => r.clear);
+    const wait = R.map((r) => r.wait), waitC = C.map((r) => r.wait);
+    const normal = S.mean(base.normal.map((r) => r.onTime));
+    const q = (xs, p) => S.quantile(xs, p);
+    const anyNaN = (xs) => xs.some((x) => Number.isNaN(x));
+
+    // tiles
+    const [d1, c1] = deltaText(100 * (S.mean(on) - S.mean(onC)), " pp", true, 1);
+    const [d2, c2] = deltaText(S.mean(peak) - S.mean(peakC), "", false, 0);
+    const [d3, c3] = anyNaN(clear) || anyNaN(clearC) ? ["", "flat"] : deltaText(S.mean(clear) - S.mean(clearC), " days", false, 0);
+    const [d4, c4] = deltaText(S.mean(wait) - S.mean(waitC), " days", false, 1);
+    const clearShare = S.share(clear, (x) => Number.isNaN(x));
+    $("tiles").innerHTML =
+      tile("On-time delivery", (100 * S.mean(on)).toFixed(1), "%", `90% of runs: ${fmtPct(q(on, 0.05))} – ${fmtPct(q(on, 0.95))}`, d1, c1) +
+      tile("Peak dispatch backlog", fmtInt(S.mean(peak)), " orders", `90% of runs: ${fmtInt(q(peak, 0.05))} – ${fmtInt(q(peak, 0.95))}`, d2, c2) +
+      tile("Days to clear backlog", anyNaN(clear) ? "> 1 yr" : S.mean(clear).toFixed(0), anyNaN(clear) ? "" : " days",
+           anyNaN(clear) ? `${fmtPct(clearShare, 0)} of runs never clear` : `90% of runs: ${q(clear, 0.05).toFixed(0)} – ${q(clear, 0.95).toFixed(0)} days`, d3, c3) +
+      tile("Average dispatch wait", S.mean(wait).toFixed(1), " days", `90% of runs: ${q(wait, 0.05).toFixed(1)} – ${q(wait, 0.95).toFixed(1)} days`, d4, c4);
+
+    // verdict
+    const pBetter = S.share(diff, (x) => x > 0), dMean = S.mean(diff), p = S.pairedP(on, onC);
+    let badge = "Baseline", tone = "", text;
+    if (state.promoMult === 1 && state.policy === "current") {
+      text = `<b>No promotion.</b> Demand stays within capacity, nothing queues, and ${fmtPct(S.mean(on))} of orders arrive on time (90% of runs between ${fmtPct(q(on, 0.05))} and ${fmtPct(q(on, 0.95))}). The rest of the lateness comes from the promises themselves. Try the 75% promise policy.`;
+    } else if (state.promoMult === 1) {
+      badge = "Promise reset"; tone = "good";
+      text = `<b>Realistic promises lift on-time delivery to ${fmtPct(S.mean(on))}</b>, from ${fmtPct(normal)} with today's promises, with no change in operations. The gap is promise-setting, not capacity.`;
+    } else if (sameAsReference()) {
+      badge = "At risk"; tone = "bad";
+      text = `<b>No response.</b> The promotion pushes demand above capacity. On-time delivery falls from ${fmtPct(normal)} to ${fmtPct(S.mean(on))}, and the backlog peaks at about ${fmtInt(S.mean(peak))} orders. Add a response on the left to compare.`;
+    } else {
+      tone = dMean > 0.005 ? "good" : dMean < -0.005 ? "bad" : "";
+      badge = tone === "good" ? "Improves" : tone === "bad" ? "Worse" : "No change";
+      const sig = Number.isFinite(p) ? (p < 0.05 ? "statistically significant" : "not statistically significant") : "identical in every run";
+      text = `<b>${dMean >= 0 ? "+" : ""}${(100 * dMean).toFixed(1)} percentage points of on-time delivery vs doing nothing</b> (${fmtPct(S.mean(on))} vs ${fmtPct(S.mean(onC))}). Better in ${fmtPct(pBetter, 0)} of ${reps} paired runs, ${sig}. Without a promotion: ${fmtPct(normal)}.`;
+    }
+    $("badge").textContent = badge; $("badge").className = "badge " + tone; $("verdict").innerHTML = text;
+
+    const accent = css("--accent"), ref = css("--ref"), ink2 = css("--ink-2"), good = css("--good"), bad = css("--bad");
+    const target = +$("tOnTime").value / 100;
+
+    // histogram of on-time rate
+    const all = on.concat(onC).filter(Number.isFinite);
+    let lo = Math.min(...all, target), hi = Math.max(...all, target);
+    const pad = Math.max(0.01, (hi - lo) * 0.05); lo = Math.max(0, lo - pad); hi = Math.min(1, hi + pad);
+    const H = histogram([on, onC], lo, hi, 36);
+    const tIdx = (target - lo) / H.w - 0.5;
+    chart("cHist", {
+      type: "bar",
+      data: { labels: H.centers.map((c) => (100 * c).toFixed(1) + "%"), datasets: [
+        { label: "No response", data: H.counts[1], backgroundColor: css("--ref-soft"), borderColor: ref, borderWidth: { top: 1.5 }, grouped: false, barPercentage: 1, categoryPercentage: 0.98 },
+        { label: "Your scenario", data: H.counts[0], backgroundColor: css("--accent-soft"), borderColor: accent, borderWidth: { top: 1.5 }, grouped: false, barPercentage: 1, categoryPercentage: 0.98 },
+      ] },
+      options: baseOpts({
+        plugins: Object.assign(baseOpts().plugins, { vlines: { lines: [{ at: tIdx, color: ink2, dash: [4, 3], label: `target ${(100 * target).toFixed(0)}%` }] },
+          tooltip: Object.assign(baseOpts().plugins.tooltip, { callbacks: { title: (it) => `On-time ≈ ${it[0].label}`, label: (it) => ` ${it.dataset.label}: ${it.raw} runs` } }) }),
+        scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { title: { display: true, text: "Runs", color: ink2, font: { size: 11 } } }) }),
+      }),
+      plugins: [vlines],
+    });
+
+    // paired difference histogram
+    const dPP = diff.map((x) => 100 * x);
+    const dl = Math.min(...dPP, 0), dh = Math.max(...dPP, 0);
+    const narrow = dh - dl < 1;   // e.g. scenario identical to doing nothing
+    const dlo = narrow ? dl - 1 : dl - (dh - dl) * 0.05, dhi = narrow ? dh + 1 : dh + (dh - dl) * 0.05;
+    const D = histogram([dPP], dlo, dhi, 32);
+    $("diffNote").textContent = sameAsReference()
+      ? "Your scenario equals doing nothing, so every difference is zero."
+      : `Better in ${fmtPct(pBetter, 0)} of runs · 90% of runs between ${q(dPP, 0.05).toFixed(1)} and ${q(dPP, 0.95).toFixed(1)} pp`;
+    chart("cDiff", {
+      type: "bar",
+      data: { labels: D.centers.map((c) => (Math.abs(c) < 0.05 ? "0.0" : (c > 0 ? "+" : "") + c.toFixed(1)) + " pp"), datasets: [
+        { label: "Runs", data: D.counts[0], backgroundColor: D.centers.map((c) => (c >= 0 ? css("--accent") : css("--bad"))), barPercentage: 1, categoryPercentage: 0.9, borderRadius: 2 },
+      ] },
+      options: baseOpts({
+        plugins: Object.assign(baseOpts().plugins, { vlines: { lines: [{ at: (0 - dlo) / D.w - 0.5, color: ink2, dash: [4, 3], label: "no gain" }] },
+          tooltip: Object.assign(baseOpts().plugins.tooltip, { callbacks: { title: (it) => `Gain ≈ ${it[0].label}`, label: (it) => ` ${it.raw} runs` } }) }),
+        scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { title: { display: true, text: "Runs", color: ink2, font: { size: 11 } } }) }),
+      }),
+      plugins: [vlines],
+    });
+
+    // risk table
+    const tB = +$("tBacklog").value, tC = +$("tClear").value;
+    const row = (label, a, b) => `<tr><td>${label}</td><td class="n"><span class="bar-cell">${fmtPct(a, 0)}<span class="pbar"><i style="width:${(100 * a).toFixed(1)}%"></i></span></span></td>
+      <td class="n"><span class="bar-cell">${fmtPct(b, 0)}<span class="pbar ref"><i style="width:${(100 * b).toFixed(1)}%"></i></span></span></td></tr>`;
+    $("riskBody").innerHTML =
+      row(`Chance on-time delivery reaches ${(100 * target).toFixed(0)}%`, S.share(on, (x) => x >= target), S.share(onC, (x) => x >= target)) +
+      row(`Chance the backlog exceeds ${tB.toLocaleString("en-US")} orders`, S.share(peak, (x) => x > tB), S.share(peakC, (x) => x > tB)) +
+      row(`Chance the backlog clears within ${tC} days`, S.share(clear, (x) => x <= tC), S.share(clearC, (x) => x <= tC)) +
+      row(`Chance on-time falls below normal (${fmtPct(normal)}) by 5 pp or more`, S.share(on, (x) => x <= normal - 0.05), S.share(onC, (x) => x <= normal - 0.05));
+
+    // backlog fan chart
+    const total = R[0].path.length;
+    const band = (runs) => {
+      const p10 = [], p50 = [], p90 = [];
+      for (let d = 0; d < total; d++) { const col = runs.map((r) => r.path[d]); p10.push(q(col, 0.1)); p50.push(q(col, 0.5)); p90.push(q(col, 0.9)); }
+      return { p10, p50, p90 };
+    };
+    const bR = band(R), bC = band(C);
+    let lastDay = 0;
+    for (let d = 0; d < total; d++) if (bR.p90[d] > 0 || bC.p90[d] > 0) lastDay = d;
+    lastDay = Math.min(total - 1, Math.max(PROMO_START + 120, lastDay + 25));
+    const days = Array.from({ length: lastDay + 1 }, (_, i) => i);
+    const cut = (xs) => xs.slice(0, lastDay + 1);
+    const promoEnd = PROMO_START + (state.spread ? 2 : 1) * state.promoDays;
+    const shade = {
+      id: "promoShade",
+      beforeDatasetsDraw(c) {
+        if (state.promoMult === 1) return;
+        const x0 = c.scales.x.getPixelForValue(PROMO_START), x1 = c.scales.x.getPixelForValue(promoEnd), ctx = c.ctx;
+        ctx.save(); ctx.fillStyle = css("--grid"); ctx.fillRect(x0, c.chartArea.top, x1 - x0, c.chartArea.bottom - c.chartArea.top);
+        ctx.fillStyle = css("--muted"); ctx.font = `500 11px ${css("--f-mono")}`; ctx.textAlign = "center";
+        ctx.fillText("promotion", (x0 + x1) / 2, c.chartArea.top + 12); ctx.restore();
+      },
+    };
+    chart("cFan", {
+      type: "line",
+      data: { labels: days, datasets: [
+        { label: "No response P90", data: cut(bC.p90), borderWidth: 0, pointRadius: 0, fill: false },
+        { label: "No response P10", data: cut(bC.p10), borderWidth: 0, pointRadius: 0, fill: "-1", backgroundColor: css("--ref-soft") },
+        { label: "No response (median)", data: cut(bC.p50), borderColor: ref, borderWidth: 2, borderDash: [5, 4], pointRadius: 0 },
+        { label: "Scenario P90", data: cut(bR.p90), borderWidth: 0, pointRadius: 0, fill: false },
+        { label: "Scenario P10", data: cut(bR.p10), borderWidth: 0, pointRadius: 0, fill: "-1", backgroundColor: css("--accent-soft") },
+        { label: "Your scenario (median)", data: cut(bR.p50), borderColor: accent, borderWidth: 2.5, pointRadius: 0 },
+      ] },
+      options: baseOpts({
+        plugins: Object.assign(baseOpts().plugins, { tooltip: Object.assign(baseOpts().plugins.tooltip, {
+          filter: (it) => /median/.test(it.dataset.label),
+          callbacks: { title: (it) => `Day ${it[0].label}`, label: (it) => {
+            const s = /Your/.test(it.dataset.label) ? bR : bC, d = it.dataIndex;
+            return ` ${it.dataset.label.replace(" (median)", "")}: ${fmtInt(it.raw)} orders (80% band ${fmtInt(s.p10[d])}–${fmtInt(s.p90[d])})`; } } }) }),
+        scales: Object.assign(baseOpts().scales, {
+          x: Object.assign(baseOpts().scales.x, { type: "linear", min: 0, max: lastDay, title: { display: true, text: "Simulation day", color: ink2, font: { size: 11 } } }),
+          y: Object.assign(baseOpts().scales.y, { title: { display: true, text: "Orders waiting", color: ink2, font: { size: 11 } } }) }),
+      }),
+      plugins: [shade],
+    });
+
+    // on time by mode
+    const modeShort = CAL.modes.map((m) => m.replace(" Class", ""));
+    const modeMean = (runs, i) => 100 * S.mean(runs.map((r) => r.byMode[i]));
+    chart("cMode", {
+      type: "bar",
+      data: { labels: modeShort, datasets: [
+        { label: "No response", data: CAL.modes.map((_, i) => modeMean(C, i)), backgroundColor: ref, borderRadius: 3, barPercentage: 0.8, categoryPercentage: 0.7 },
+        { label: "Your scenario", data: CAL.modes.map((_, i) => modeMean(R, i)), backgroundColor: accent, borderRadius: 3, barPercentage: 0.8, categoryPercentage: 0.7 },
+      ] },
+      options: baseOpts({
+        indexAxis: "y",
+        interaction: { mode: "index", axis: "y", intersect: false },
+        plugins: Object.assign(baseOpts().plugins, { tooltip: Object.assign(baseOpts().plugins.tooltip, { callbacks: { label: (it) => ` ${it.dataset.label}: ${it.raw.toFixed(1)}%` } }) }),
+        scales: {
+          x: Object.assign(baseOpts().scales.y, { min: 0, max: 100, ticks: Object.assign(baseOpts().scales.y.ticks, { callback: (v) => v + "%" }) }),
+          y: Object.assign(baseOpts().scales.x, { grid: { display: false } }),
+        },
+      }),
+    });
+
+    // convergence
+    let sum = 0, sum2 = 0; const cm = [], clo = [], chi = [];
+    on.forEach((x, i) => { sum += x; sum2 += x * x; const n = i + 1, m = sum / n;
+      const s = n > 1 ? Math.sqrt(Math.max(0, (sum2 - n * m * m) / (n - 1))) : 0, h = n > 1 ? 1.96 * s / Math.sqrt(n) : 0;
+      cm.push(100 * m); clo.push(100 * (m - h)); chi.push(100 * (m + h)); });
+    const idx = on.map((_, i) => i + 1);
+    chart("cConv", {
+      type: "line",
+      data: { labels: idx, datasets: [
+        { label: "upper", data: chi, borderWidth: 0, pointRadius: 0, fill: false },
+        { label: "lower", data: clo, borderWidth: 0, pointRadius: 0, fill: "-1", backgroundColor: css("--accent-soft") },
+        { label: "Running average", data: cm, borderColor: accent, borderWidth: 2, pointRadius: 0 },
+      ] },
+      options: baseOpts({
+        plugins: Object.assign(baseOpts().plugins, { tooltip: Object.assign(baseOpts().plugins.tooltip, {
+          filter: (it) => it.dataset.label === "Running average",
+          callbacks: { title: (it) => `After ${it[0].label} runs`, label: (it) => ` ${it.raw.toFixed(2)}% ± ${((chi[it.dataIndex] - clo[it.dataIndex]) / 2).toFixed(2)}` } }) }),
+        scales: Object.assign(baseOpts().scales, {
+          x: Object.assign(baseOpts().scales.x, { type: "linear", min: 1, max: on.length, title: { display: true, text: "Runs", color: ink2, font: { size: 11 } } }),
+          y: Object.assign(baseOpts().scales.y, { beginAtZero: false, ticks: Object.assign(baseOpts().scales.y.ticks, { callback: (v) => v + "%" }) }) }),
+      }),
+    });
+  }
+
+  // re-render charts in the new palette when the theme changes
+  const rerender = () => { if (last) render(last); };
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender); } catch (e) {}
+  new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  syncControls();
+  run();
+})();
+</script>
+
+</body>
+</html>

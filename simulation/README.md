@@ -8,6 +8,8 @@ This extends my undergraduate thesis, which simulated mitigation strategies for 
 
 ## Interactive app
 
+A browser version with a full Monte Carlo view (distributions, risk probabilities, convergence) lives in [`web/`](../web/README.md). It needs no install. The Streamlit app below runs the Python model itself.
+
 ```powershell
 pip install -r simulation/requirements.txt
 streamlit run simulation/app.py            # opens http://localhost:8501

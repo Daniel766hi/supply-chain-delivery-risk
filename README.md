@@ -1,6 +1,6 @@
 # Supply Chain Delivery Risk: why DataCo misses its delivery promise
 
-**SQL (PostgreSQL) · Power BI · Python discrete-event simulation (SimPy) · Supply chain analytics**
+**SQL (PostgreSQL) · Power BI · Discrete-event simulation (Python SimPy, JavaScript) · Monte Carlo · Supply chain analytics**
 
 An end-to-end analysis of 180,519 order lines (65,752 orders, Jan 2015 – Jan 2018) from a global sporting-goods retailer. I built a cleaned star-schema warehouse in PostgreSQL, tested the usual explanations for late delivery one by one, and modelled how changing delivery promises would change on-time performance. A calibrated digital twin of the fulfilment flow then stress-tests promotional demand shocks and the responses to them. The results feed a four-page Power BI dashboard (build guide: [docs/powerbi_guide.md](docs/powerbi_guide.md)).
 
@@ -124,7 +124,11 @@ The SQL analysis explains normal operations. A promotion is different: demand ri
 
 Each response was compared with "no action" over 30 paired replications. All gains are significant at p < 0.001 except premium-first at 1.5x.
 
-The twin has an **interactive app** (`streamlit run simulation/app.py`) for testing any promotion and response combination live:
+**Try it in the browser:** a [Monte Carlo version of the twin](web/README.md) runs entirely in the page. It shows the spread of outcomes across hundreds of simulated years, the chance of hitting service targets, and how reliably each response beats doing nothing. Open `web/index.html`, or the GitHub Pages link once Pages is enabled.
+
+![Browser twin](web/screenshot.png)
+
+There is also a Python **interactive app** (`streamlit run simulation/app.py`) for testing any promotion and response combination live:
 
 ![Digital twin app](simulation/results/app_screenshot.png)
 
@@ -176,12 +180,14 @@ streamlit run simulation/app.py   # interactive twin
 │   ├── 06_business_analysis.sql   Q1–Q8 business questions
 │   └── 07_simulation_inputs.sql   calibration data for the digital twin
 ├── simulation/                    digital twin (SimPy): model, app, tests, experiments, results
+├── web/                           browser twin with Monte Carlo (one HTML file, no install)
 ├── results/                       query outputs (the evidence for the findings)
 ├── powerbi/                       .pbix dashboard
 ├── docs/
 │   ├── windows_setup.md
 │   ├── powerbi_guide.md
 │   ├── results_placeholders.md
+│   ├── index.html                 browser twin, served by GitHub Pages
 │   └── images/                    dashboard screenshots
 ├── data/                          put the CSV here (git-ignored)
 └── run_all.ps1                    runs 00–07 in order
