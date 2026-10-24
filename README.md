@@ -1,8 +1,8 @@
 # Supply Chain Delivery Risk: why DataCo misses its delivery promise
 
-**SQL (PostgreSQL) · Power BI · Supply chain analytics**
+**SQL (PostgreSQL) · Power BI · Python discrete-event simulation (SimPy) · Supply chain analytics**
 
-An end-to-end analysis of 180,519 order lines (65,752 orders, Jan 2015 – Jan 2018) from a global sporting-goods retailer. I built a cleaned star-schema warehouse in PostgreSQL, tested the usual explanations for late delivery one by one, and modelled how changing delivery promises would change on-time performance. The results feed a four-page Power BI dashboard (build guide: [docs/powerbi_guide.md](docs/powerbi_guide.md)).
+An end-to-end analysis of 180,519 order lines (65,752 orders, Jan 2015 – Jan 2018) from a global sporting-goods retailer. I built a cleaned star-schema warehouse in PostgreSQL, tested the usual explanations for late delivery one by one, and modelled how changing delivery promises would change on-time performance. A calibrated digital twin of the fulfilment flow then stress-tests promotional demand shocks and the responses to them. The results feed a four-page Power BI dashboard (build guide: [docs/powerbi_guide.md](docs/powerbi_guide.md)).
 
 > **Headline:** 57.3% of shipped orders arrive later than promised. The cause is not market, customer segment or demand volume. It is the delivery promise set for each shipping mode. First Class misses its 1-day promise on 100% of orders, and Second Class is no faster than Standard Class.
 
@@ -67,7 +67,8 @@ flowchart LR
 2. **Star schema** ([03_build_warehouse.sql](sql/03_build_warehouse.sql)): `fact_orders` (65,752 rows) and `fact_order_lines` (180,519), plus date, customer, geography, shipping-mode and product dimensions, with primary and foreign keys enforced.
 3. **Automated validation** ([04_validate_warehouse.sql](sql/04_validate_warehouse.sql)): 12 reconciliation checks (row counts, sales and profit totals, flag logic, key integrity), each PASS/FAIL.
 4. **Hypothesis-driven analysis** ([05_kpi_views.sql](sql/05_kpi_views.sql), [06_business_analysis.sql](sql/06_business_analysis.sql)). Each candidate driver is tested on the same metric (late rate of shipped orders), so the drivers can be ruled out against each other. SQL techniques: CTEs, window functions (`RANK`, `LAG`, `LEAD`, `ROW_NUMBER`, running and rolling sums), `PERCENTILE_CONT`, `FILTER` aggregates, `GENERATE_SERIES` scenario grids.
-5. **Power BI** ([docs/powerbi_guide.md](docs/powerbi_guide.md)): Import model on the star schema, 28 DAX measures (time intelligence, `CROSSFILTER`, a what-if parameter). Headline cards are reconciled to the SQL output before any visual is built.
+5. **Digital twin** ([simulation/](simulation)): a SimPy discrete-event model of order-to-delivery, calibrated on 12 months of real orders, validated against history and covered by extreme-condition tests. Used to test responses to promotional demand shocks with paired comparisons (section 5).
+6. **Power BI** ([docs/powerbi_guide.md](docs/powerbi_guide.md)): Import model on the star schema, 28 DAX measures (time intelligence, `CROSSFILTER`, a what-if parameter). Headline cards are reconciled to the SQL output before any visual is built.
 
 ### Data model
 
@@ -112,23 +113,38 @@ Cancelled and suspected-fraud orders account for $1.4M (4.3% of net sales), spre
 
 <!-- ![Commercial exposure](docs/images/04_commercial_exposure.png) -->
 
-## 5. Recommendations
+## 5. Digital twin: what happens during a promotion?
+
+The SQL analysis explains normal operations. A promotion is different: demand rises above anything the data shows the network handling. I built a [discrete-event digital twin](simulation/README.md) of the order-to-delivery flow and checked it against history: daily volume and on-time rates match within 0.25 pp. Then I ran 14-day promotions at 1.5x and 2x demand, with dispatch capacity set to the busiest day seen (64 orders), varied from 64 to 96 in a sensitivity test.
+
+- **A promotion turns a promise problem into a capacity problem.** A 1.5x promotion cuts on-time delivery from 43.0% to 22.8% and leaves a backlog of about 254 orders that takes about 40 days to clear. At 2x, on-time delivery falls to 2.3%.
+- **Surge capacity is the strongest single response.** +50% dispatch capacity during the promotion recovers +20.2 pp at 1.5x and +27.8 pp at 2x.
+- **Quoting longer delivery times on promotional orders adds to it.** Surge capacity plus 3 extra quoted days gives the best result: 59.7% at 1.5x, 53.5% at 2x.
+- **Dispatching premium modes first doesn't raise the overall on-time rate.** At 1.5x the change is +0.0 pp (p = 0.81), but it protects Same Day customers (18.2% → 49.3%).
+
+Each response was compared with "no action" over 30 paired replications. All gains are significant at p < 0.001 except premium-first at 1.5x.
+
+![Backlog after a 2x promotion](simulation/results/backlog_2x_promo.png)
+
+## 6. Recommendations
 
 1. **Fix First Class first.** It is late on almost every order and takes a fixed, predictable time, so it is the quickest win. Either promise what is delivered, or find the fixed one-day step behind it (order cut-off time, warehouse handover). That needs process timestamps this dataset doesn't have.
 2. **Re-design or re-price Second Class.** Customers choosing it get no speed advantage over Standard Class. Find out whether these orders are routed through the Standard network.
 3. **Set promises from the lead-time distribution, not from targets.** Use a stated on-time objective (e.g. 75% or 90%) and the scenario table to pick each mode's promise. Review it quarterly.
 4. **Don't fund regional or carrier changes on this evidence.** Location differences are too small to justify them.
-5. **Collect the missing data:** carrier, warehouse and handover timestamps, plus complaints and returns. That would show *why* lead times vary and what late delivery costs in lost customers.
+5. **Plan promotions and fulfilment capacity together.** Size each promotion against dispatch capacity, line up surge capacity in advance, and quote longer delivery times on promotional orders. The twin shows about 25% headroom absorbs a 1.5x promotion.
+6. **Collect the missing data:** carrier, warehouse and handover timestamps, plus complaints and returns. That would show *why* lead times vary and what late delivery costs in lost customers.
 
-## 6. Limitations
+## 7. Limitations
 
 - **The data looks partly simulated.** Actual lead times are spread almost uniformly (e.g. Standard Class: 2–6 days, about 20% each). Late rates are nearly identical across every non-mode dimension, and orders with status `PENDING_PAYMENT` still have delivery outcomes. The method transfers to real data; the specific numbers should not be read as industry benchmarks.
 - **Last four months behave differently.** From Oct 2017 order counts rise while average order value roughly halves (Q5b), which suggests a product-mix change or partial data. Trend conclusions rest mainly on 2015 to Sep 2017.
 - **"Sales in late orders" is exposure, not loss.** There is no cost, penalty or churn data to turn late delivery into lost money.
-- **The scenarios change only the promise.** They measure how much of the problem is promise-setting. They are not a forecast of operational improvement.
+- **The promise scenarios change only the promise.** They measure how much of the problem is promise-setting. They are not a forecast of operational improvement.
+- **The twin's dispatch capacity is an assumption** (the busiest observed day). Its limitations are listed in [simulation/README.md](simulation/README.md#5-limitations).
 - Country and city names are in Spanish (e.g. *Estados Unidos*), as in the source.
 
-## 7. Reproduce it
+## 8. Reproduce it
 
 Full Windows walkthrough: **[docs/windows_setup.md](docs/windows_setup.md)**. In short:
 
@@ -137,9 +153,14 @@ Full Windows walkthrough: **[docs/windows_setup.md](docs/windows_setup.md)**. In
 powershell -ExecutionPolicy Bypass -File .\run_all.ps1
 ```
 
-Then build the dashboard with **[docs/powerbi_guide.md](docs/powerbi_guide.md)**.
+Then build the dashboard with **[docs/powerbi_guide.md](docs/powerbi_guide.md)** and run the twin:
 
-## 8. Repository structure
+```powershell
+pip install -r simulation/requirements.txt
+python simulation/run_experiments.py
+```
+
+## 9. Repository structure
 
 ```
 ├── sql/
@@ -149,7 +170,9 @@ Then build the dashboard with **[docs/powerbi_guide.md](docs/powerbi_guide.md)**
 │   ├── 03_build_warehouse.sql     staging + star schema with keys
 │   ├── 04_validate_warehouse.sql  12 PASS/FAIL reconciliation checks
 │   ├── 05_kpi_views.sql           KPI views (mart schema)
-│   └── 06_business_analysis.sql   Q1–Q8 business questions
+│   ├── 06_business_analysis.sql   Q1–Q8 business questions
+│   └── 07_simulation_inputs.sql   calibration data for the digital twin
+├── simulation/                    digital twin (SimPy): model, tests, experiments, results
 ├── results/                       query outputs (the evidence for the findings)
 ├── powerbi/                       .pbix dashboard
 ├── docs/
@@ -158,5 +181,5 @@ Then build the dashboard with **[docs/powerbi_guide.md](docs/powerbi_guide.md)**
 │   ├── results_placeholders.md
 │   └── images/                    dashboard screenshots
 ├── data/                          put the CSV here (git-ignored)
-└── run_all.ps1                    runs 00–06 in order
+└── run_all.ps1                    runs 00–07 in order
 ```

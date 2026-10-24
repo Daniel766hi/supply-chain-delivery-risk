@@ -1,0 +1,4 @@
+policy,promise_per_mode,on_time_pct,ci95_pp,avg_days_added_per_order
+Current promises,"Same Day 0d, First Class 1d, Second Class 2d, Standard Class 4d",42.9,0.2,0.0
+Promise met 75% of the time,"Same Day 1d, First Class 2d, Second Class 5d, Standard Class 5d",84.3,0.1,1.39
+Promise met 90% of the time,"Same Day 1d, First Class 2d, Second Class 6d, Standard Class 6d",100.0,0.0,2.18

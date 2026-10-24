@@ -1,0 +1,17 @@
+metric,history,twin_mean,twin_ci95_low,twin_ci95_high,abs_diff
+Daily orders: mean,54.6192,54.6061,54.5462,54.666,0.0131
+Daily orders: std dev,3.5348,3.5103,3.4546,3.566,0.0245
+Dispatch wait (days): mean,0.0,0.0,0.0,0.0,0.0
+On-time rate: all modes,0.4289,0.4288,0.4273,0.4303,0.0002
+Mode share: Same Day,0.0547,0.055,0.0545,0.0555,0.0003
+On-time rate: Same Day,0.4968,0.4962,0.4906,0.5017,0.0006
+Avg lead time (days): Same Day,0.5032,0.5038,0.4983,0.5094,0.0006
+Mode share: First Class,0.1525,0.1528,0.1517,0.1539,0.0003
+On-time rate: First Class,0.0,0.0,0.0,0.0,0.0
+Avg lead time (days): First Class,2.0,2.0,2.0,2.0,0.0
+Mode share: Second Class,0.1934,0.1928,0.1918,0.1938,0.0006
+On-time rate: Second Class,0.2033,0.2021,0.1998,0.2044,0.0012
+Avg lead time (days): Second Class,3.9933,3.9972,3.9904,4.004,0.0039
+Mode share: Standard Class,0.5994,0.5994,0.5982,0.6007,0.0
+On-time rate: Standard Class,0.6047,0.6047,0.6028,0.6067,0.0001
+Avg lead time (days): Standard Class,3.9858,3.985,3.9802,3.9897,0.0008

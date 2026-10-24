@@ -66,6 +66,7 @@ psql -U postgres -d dataco -v ON_ERROR_STOP=1 -f sql/03_build_warehouse.sql
 psql -U postgres -d dataco -f sql/04_validate_warehouse.sql -o results/04_validation_output.txt
 psql -U postgres -d dataco -v ON_ERROR_STOP=1 -f sql/05_kpi_views.sql
 psql -U postgres -d dataco -f sql/06_business_analysis.sql  -o results/06_analysis_output.txt
+psql -U postgres -d dataco -v ON_ERROR_STOP=1 -f sql/07_simulation_inputs.sql
 ```
 
 Or run everything at once:
@@ -83,7 +84,20 @@ powershell -ExecutionPolicy Bypass -File .\run_all.ps1
 | 04 | **All 12 checks show PASS** in `results/04_validation_output.txt`. If any shows FAIL, stop and fix it before building the dashboard. |
 | 06 | `results/06_analysis_output.txt` holds sections Q1–Q8. This file is the evidence for the README and your CV. |
 
-## 5. Troubleshooting
+## 5. Run the digital twin (Python)
+
+Needs Python 3.10 or newer (`python --version`). From the project root:
+
+```powershell
+pip install -r simulation/requirements.txt
+python -m pytest simulation/tests          # expected: 11 passed
+python simulation/run_validation.py        # twin vs history, about 10 seconds
+python simulation/run_experiments.py       # about 2-3 minutes, writes simulation/results/
+```
+
+The twin reads `simulation/inputs/*.csv`, which step 07 regenerates from the database. These files are also committed, so the twin runs even without PostgreSQL. Results should match the committed files in `simulation/results/` exactly (fixed random seeds).
+
+## 6. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -93,6 +107,6 @@ powershell -ExecutionPolicy Bypass -File .\run_all.ps1
 | `WARNING: Console code page (437) differs from Windows code page (1252)` | Harmless. Run `chcp 1252` first to silence it. |
 | Accented city names look odd in the console | Display issue only. The data in the database is correct; check in pgAdmin. |
 
-## 6. Optional: look around in pgAdmin
+## 7. Optional: look around in pgAdmin
 
 Open pgAdmin 4 → Servers → PostgreSQL 16 → Databases → **dataco** → Schemas. You will see `raw`, `stg`, `dw` (tables) and `mart` (views). Right-click a view → *View/Edit Data* → *First 100 Rows*.

@@ -10,3 +10,7 @@ data/*.zip
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Python
+__pycache__/
+.pytest_cache/

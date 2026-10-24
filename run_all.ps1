@@ -1,4 +1,4 @@
-# Runs the full SQL pipeline (00 -> 06) from the project root.
+# Runs the full SQL pipeline (00 -> 07) from the project root.
 # Usage:  powershell -ExecutionPolicy Bypass -File .\run_all.ps1
 
 Set-Location $PSScriptRoot
@@ -23,7 +23,8 @@ $steps = @(
     @{ File = "sql/03_build_warehouse.sql";   Db = "dataco";   Out = $null },
     @{ File = "sql/04_validate_warehouse.sql"; Db = "dataco";  Out = "results/04_validation_output.txt" },
     @{ File = "sql/05_kpi_views.sql";         Db = "dataco";   Out = $null },
-    @{ File = "sql/06_business_analysis.sql"; Db = "dataco";   Out = "results/06_analysis_output.txt" }
+    @{ File = "sql/06_business_analysis.sql"; Db = "dataco";   Out = "results/06_analysis_output.txt" },
+    @{ File = "sql/07_simulation_inputs.sql"; Db = "dataco";   Out = $null }
 )
 
 foreach ($s in $steps) {

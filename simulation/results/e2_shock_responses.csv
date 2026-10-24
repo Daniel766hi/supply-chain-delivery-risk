@@ -1,0 +1,13 @@
+promo_size,response,on_time_pct,ci95_pp,vs_no_action_pp,vs_no_action_ci95_pp,p_value,on_time_same_day_pct,avg_dispatch_wait_days,peak_backlog_orders,days_to_clear_backlog
+1.5x,No action,22.8,0.8,0.0,0.0,,18.2,1.42,254,40.1
+1.5x,Surge capacity +50% during promo,43.0,0.3,20.2,0.9,5.9e-29,49.3,0.0,0,0.0
+1.5x,Premium modes dispatched first,22.8,0.7,0.0,0.2,0.81,49.3,1.42,254,40.1
+1.5x,Quote +3 days on promo orders,39.6,1.0,16.9,0.3,6.3e-40,39.9,1.42,254,40.1
+1.5x,Spread promo over 28 days (same volume),31.3,0.9,8.5,0.3,9.7e-32,23.1,0.7,123,40.3
+1.5x,Surge +50% and quote +3 days,59.7,0.3,36.9,0.9,1.1e-36,65.5,0.0,0,0.0
+2.0x,No action,2.3,0.1,0.0,0.0,,0.8,5.96,638,81.4
+2.0x,Surge capacity +50% during promo,30.1,1.0,27.8,0.9,3.8e-32,23.9,0.81,190,33.6
+2.0x,Premium modes dispatched first,7.3,0.2,5.0,0.2,2.4e-33,49.2,6.0,638,81.4
+2.0x,Quote +3 days on promo orders,11.4,0.2,9.1,0.1,2.1e-42,11.6,5.96,638,81.4
+2.0x,Spread promo over 28 days (same volume),4.3,0.2,2.0,0.1,6.8e-26,1.7,4.61,504,81.0
+2.0x,Surge +50% and quote +3 days,53.5,1.0,51.2,0.9,8.4e-40,56.4,0.81,190,33.6
