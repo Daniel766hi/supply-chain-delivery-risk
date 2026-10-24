@@ -1,4 +1,4 @@
-# Fulfilment digital twin: stress-testing promotions
+# Supply chain digital twin: stress-testing promotions
 
 A discrete-event simulation (Python, SimPy) of DataCo's order-to-delivery flow, calibrated on 12 months of real orders. The SQL analysis explains today's late deliveries. The twin asks the forward-looking question:
 
@@ -123,7 +123,56 @@ All differences are significant at p < 0.001, except premium-first at 1.5x. Full
 - **Demand doesn't react.** Customers don't cancel or switch modes when delivery slows.
 - **The source data looks partly simulated** (see the main README). The twin's method transfers to real data; its numbers are not benchmarks.
 
-## 6. Run it
+## 6. End-to-end model: supplier to customer
+
+`twin/chain.py` extends the twin upstream. Each simulated day:
+
+1. The supplier ships up to its daily capacity from its order backlog. Goods reach the warehouse after the inbound lead time.
+2. The warehouse receives today's arrivals.
+3. Customer orders arrive: the same demand, mode and lead-time draws as the dispatch twin, plus units per order drawn from the real distribution (1–24 units, mean 6.5; `inputs/units_per_order.csv`).
+4. Dispatch ships up to capacity, and only while the units are in stock. An order that can't be filled blocks the queue behind it.
+5. The warehouse reorders with an order-up-to policy: target = expected demand over (lead time + 1 day) + safety stock; order = target − inventory position. Expected demand comes from exponential smoothing of recent sales (reactive) or from the shared promotion plan (promo-aware).
+
+| Input | Value | Source |
+|---|---|---|
+| Demand, mode mix, lead times, promises | as in section 1 | data |
+| Units per order | 1–24, mean 6.5 (352.7 units/day) | data |
+| Supplier capacity | 1.25 × mean daily units | **assumption** |
+| Inbound lead time | 5 days | **assumption** |
+| Safety stock | 2 days of mean demand | **assumption** |
+| Planning | reactive (α = 0.2) or promo-aware | **assumption / lever** |
+
+**Checks** (`tests/test_chain.py`, 14 tests):
+- With unlimited supply the model reproduces the SimPy dispatch twin **exactly**, run for run (same seeds, 8 scenario/seed combinations).
+- Units are conserved day by day: stock change = received − shipped.
+- Default upstream assumptions never cause a stockout in normal operations, so the historical validation still holds.
+- Zero supplier capacity stops dispatch once stock runs out. More supplier capacity never lowers on-time delivery.
+
+**Results** (`run_chain_experiments.py`; 30 runs each, paired t-tests):
+
+| Normal operations | On time | Stockout days | Bullwhip ratio |
+|---|---|---|---|
+| Unlimited supply | 42.9% | 0 | – |
+| Reactive planning | 42.9% | 0 | 5.01 |
+| Promotion plan shared | 42.9% | 0 | 1.00 |
+
+| Response (added step by step) | 1.5x: on time | stockout days | 2x: on time | stockout days |
+|---|---|---|---|---|
+| No action | 22.8% | 0.0 | 2.3% | 0.0 |
+| Dispatch surge +50% | 32.0% | 10.9 | 4.9% | 12.2 |
+| + share promo plan with supplier | 39.6% | 6.7 | 9.5% | 10.8 |
+| + supplier flex capacity (1.6×) | 43.0% | 0.0 | 28.9% | 2.0 |
+| + quote +3 days on promo orders | 59.7% | 0.0 | 51.9% | 2.0 |
+
+Sensitivity (1.5x promotion, dispatch surge, reactive): on-time delivery ranges from 17.1% (10-day lead time, 0.5 days of safety stock) to 42.5% (2-day lead time, 4 days of safety stock). Full grid: [`results/c3_upstream_sensitivity.csv`](results/c3_upstream_sensitivity.csv).
+
+![Bullwhip](results/chain_bullwhip.png)
+
+![End-to-end responses](results/chain_responses.png)
+
+**What it adds:** a dispatch-only model overstates what warehouse surge capacity achieves. Once dispatch keeps up, stock becomes the constraint. The supplier can't follow a demand spike it only sees through the warehouse's reactive orders (the bullwhip effect). Promotions need a coordinated plan: share the plan, agree flex capacity, surge the warehouse, quote realistic delivery times.
+
+## 7. Run it
 
 ```powershell
 # from the repo root (Python 3.10+)
@@ -131,6 +180,7 @@ pip install -r simulation/requirements.txt
 python -m pytest simulation/tests          # 11 checks
 python simulation/run_validation.py        # ~10 s
 python simulation/run_experiments.py       # ~2-3 min, writes simulation/results/
+python simulation/run_chain_experiments.py # end-to-end model, ~40 s
 streamlit run simulation/app.py            # interactive app
 ```
 
@@ -142,6 +192,7 @@ simulation/
 ├── twin/
 │   ├── inputs.py            loads calibration
 │   ├── model.py             SimPy model: scenarios, order entities, dispatcher
+│   ├── chain.py             end-to-end model: supplier, inbound, warehouse stock, dispatch
 │   └── experiment.py        replications, confidence intervals, paired t-test
 ├── tests/test_model.py      extreme-condition and logic tests
 ├── run_validation.py        twin vs history

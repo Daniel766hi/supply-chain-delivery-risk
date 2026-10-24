@@ -5,7 +5,8 @@
  * Re-runs the 12 promotion experiments (E2) and the no-promotion baseline
  * with 500 replications each, then compares the mean on-time rate, peak
  * backlog and days to clear with simulation/results/e2_shock_responses.csv
- * (Python, 30 replications). The two engines use different random-number
+ * (Python, 30 replications). Then does the same for the 10 end-to-end
+ * chain experiments (C2: on-time, stockout days, bullwhip ratio). The two engines use different random-number
  * generators, so agreement is judged statistically: |difference| must be
  * within 3 standard errors (plus a small rounding allowance).
  */
@@ -75,6 +76,34 @@ for (const mult of [1.5, 2.0]) {
       compare(label + " | days to clear", clears, +p.days_to_clear_backlog,
               T.stats.sd(clears) / Math.sqrt(30), "days", 1);
     }
+  }
+}
+
+// ---- end-to-end chain: compare with simulation/results/c2_chain_responses.csv
+const c2 = fs.readFileSync(path.join(ROOT, "simulation/results/c2_chain_responses.csv"), "utf8").trim().split("\n").map((l) => l.split(","));
+const h2 = c2.shift();
+const pyChain = c2.map((r) => Object.fromEntries(h2.map((h, i) => [h, r[i]])));
+function chainResponses(mult) {
+  const base = Object.assign({}, PROMO, { promoMult: mult, chain: {} });
+  const surge = Object.assign({}, base, { promoCapFactor: 1.5 });
+  return {
+    "No action": base,
+    "Dispatch surge +50%": surge,
+    "+ share promo plan with supplier": Object.assign({}, surge, { chain: { planning: "PROMO_AWARE" } }),
+    "+ supplier flex capacity (1.6x)": Object.assign({}, surge, { chain: { planning: "PROMO_AWARE", supplierCapFactor: 1.6 } }),
+    "+ quote +3 days on promo orders": Object.assign({}, surge, { promoExtraDays: 3, chain: { planning: "PROMO_AWARE", supplierCapFactor: 1.6 } }),
+  };
+}
+for (const mult of [1.5, 2.0]) {
+  for (const [name, over] of Object.entries(chainResponses(mult))) {
+    const p = pyChain.find((r) => r.promo_size === `${mult.toFixed(1)}x` && r.response === name);
+    const runs = runMany(over);
+    const label = `chain ${mult.toFixed(1)}x | ${name}`;
+    compare(label + " | on-time", runs.map((r) => 100 * r.onTime), +p.on_time_pct, +p.ci95_pp / 2.045, "%", 0.15);
+    const so = runs.map((r) => r.stockoutDays);
+    compare(label + " | stockout days", so, +p.stockout_days, T.stats.sd(so) / Math.sqrt(30), "days", 0.1);
+    const bw = runs.map((r) => r.bullwhip);
+    compare(label + " | bullwhip", bw, +p.bullwhip_ratio, T.stats.sd(bw) / Math.sqrt(30), "ratio", 0.02);
   }
 }
 

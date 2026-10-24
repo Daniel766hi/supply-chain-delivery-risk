@@ -17,10 +17,12 @@ from pathlib import Path
 WEB = Path(__file__).resolve().parent
 sys.path.insert(0, str(WEB.parent / "simulation"))
 from twin import load_calibration  # noqa: E402
+from twin.chain import load_units_per_order  # noqa: E402
 
 
 def write_calibration():
     cal = load_calibration()
+    units = load_units_per_order()
     data = {
         "modes": list(cal.modes),
         "modeMix": [round(float(x), 6) for x in cal.mode_mix],
@@ -29,6 +31,8 @@ def write_calibration():
         "leadCdf": {m: [round(float(x), 6) for x in cal.lead_cdf[m]] for m in cal.modes},
         "dailyDemand": [int(x) for x in cal.daily_demand],
         "observedPeak": int(cal.observed_peak),
+        "unitsValues": [int(x) for x in units[0]],
+        "unitsCdf": [round(float(x), 6) for x in units[1]],
         "calibrationOrders": int(cal.daily_demand.sum()),
         "calibrationPeriod": "Oct 2016 - Sep 2017",
     }

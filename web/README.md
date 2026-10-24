@@ -1,22 +1,28 @@
 # Browser twin with Monte Carlo
 
-The fulfilment digital twin, running entirely in the browser: no Python, nothing to install. It has two parts on one page, driven by the same scenario settings: a 3D dispatch yard that plays out one simulated year, and a Monte Carlo study across hundreds of years.
+The supply chain digital twin, running entirely in the browser: no Python, nothing to install. It has two parts on one page, driven by the same scenario settings: a 3D supply chain that plays out one simulated year, from the supplier's factory to customers' doors, and a Monte Carlo study across hundreds of years.
 
-![3D dispatch yard](yard_screenshot.png)
+![3D supply chain](chain_screenshot.png)
 
-## Live dispatch yard (3D)
+## Live supply chain (3D)
 
-A Three.js scene animates one replication of the simulation, day by day:
+A Three.js scene animates one replication of the end-to-end simulation, day by day, laid out from upstream (left) to downstream (right):
 
 | What you see | What it means in the model |
 |---|---|
-| Boxes on the yellow staging lane | Orders waiting for dispatch (1 box = 4 orders); the pile grows when daily orders exceed capacity |
-| Lit dock doors (12 in total) | That day's dispatch capacity at 8 orders per truck: 64 orders/day opens 8 doors, and surge capacity opens more |
-| Trucks backing in and pulling out | Orders shipped that day, one truck per 8 orders |
-| Door lamps | Green = truck loading, amber = door open and idle |
-| Panel and backlog strip | Orders placed and shipped today, orders waiting, doors open, on-time rate so far, and the backlog path for the whole year |
+| Supplier factory: conveyor speed | Units the supplier ships today, relative to its capacity |
+| Boxes in the factory yard | Units the warehouse has ordered that the supplier hasn't shipped yet (1 box = 50 units) |
+| Trucks on the inbound road | Supplier shipments in transit, placed by how far through the inbound lead time they are (1 truck ≈ 150 units); they unload at the receiving doors on arrival |
+| Cartons in the warehouse racks | Stock on hand (1 carton = 2 units). Empty racks mean a stockout, and orders wait |
+| Boxes on the yellow staging lane | Orders waiting for dispatch (1 box = 4 orders) |
+| Lit dock doors (12) | That day's dispatch capacity at 8 orders per truck |
+| Trucks to the customer town | Orders shipped that day |
+| Roof colours | Today's shipments: green on time, red late |
+| Supply chain strip under the scene | Supplier output and backlog, units in transit, stock and days of cover, dispatch, on-time share |
 
-Play, pause, jump to any day, replay the promotion, or change speed (1×–30×, 1× = 4 seconds per day). Drag to rotate and scroll to zoom. The yard replays the same random draws as the first Monte Carlo run, so the backlog strip matches the model exactly. If a browser has WebGL turned off, the page shows a note and the Monte Carlo study still works.
+Camera buttons jump to the whole chain, supplier, inbound road, warehouse or customers. Drag to rotate and scroll to zoom. Play, pause, jump to any day, replay the promotion, or change speed (1×–30×, 1× = 4 seconds per day). The scene replays the same random draws as the first Monte Carlo run. If WebGL is off, the page shows a note and the Monte Carlo study still works.
+
+Upstream settings (supplier capacity, inbound lead time, safety stock, planning) are assumptions, since the DataCo data covers only orders and their delivery. Untick "Model the supplier and warehouse stock" to go back to the dispatch-only twin.
 
 ## Monte Carlo study
 
@@ -47,10 +53,10 @@ It shows:
 
 `twin.js` is a JavaScript port of `simulation/twin/model.py`: same flow, same rules, same calibration data (`calibration.js` is generated from `simulation/inputs/*.csv`). The random-number generator differs, so individual runs differ, but the distributions agree.
 
-`check_model.js` checks this. It re-runs the 12 promotion experiments and the baseline with 500 runs each and compares them with the Python results:
+`check_model.js` checks this. It re-runs the 12 dispatch promotion experiments, the baseline and the 10 end-to-end chain experiments with 500 runs each, and compares them with the Python results:
 
 ```
-node web/check_model.js      # All 37 checks passed
+node web/check_model.js      # All 67 checks passed
 ```
 
 ## Files
@@ -59,7 +65,7 @@ node web/check_model.js      # All 37 checks passed
 |---|---|
 | `app.html` | Page source (UI, charts) |
 | `twin.js` | Simulation engine (batch or one day at a time) + Monte Carlo + statistics (browser and Node) |
-| `yard.js` | 3D dispatch yard (Three.js), driven by `twin.js` day by day |
+| `yard.js` | 3D supply chain scene (Three.js), driven by `twin.js` day by day |
 | `calibration.js` | Generated calibration data |
 | `build.py` | Regenerates `calibration.js` and builds the one-file `index.html` (also copied to `docs/index.html`) |
 | `check_model.js` | Cross-check against the Python model |

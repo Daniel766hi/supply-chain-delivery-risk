@@ -1,4 +1,4 @@
-<title>DataCo Fulfilment Twin</title>
+<title>DataCo Supply Chain Twin</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,6 +137,24 @@ select { font: 500 13px var(--f-body); color: var(--ink); background: var(--pane
   .tag { display: none; }
 }
 
+/* ---- chain strip ---- */
+.chain { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: 0 16px 14px; }
+.node { position: relative; padding: 10px 12px 10px 14px; border: 1px solid var(--line); background: var(--panel-2); display: grid; gap: 2px; min-width: 0; }
+.node + .node { border-left: 0; }
+.node:first-child { border-radius: 8px 0 0 8px; } .node:last-child { border-radius: 0 8px 8px 0; }
+.node + .node::before { content: ""; position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; transform: translateY(-50%) rotate(45deg);
+                        background: var(--panel-2); border-top: 1px solid var(--line); border-right: 1px solid var(--line); z-index: 1; }
+.node .nk { font: 500 10.5px var(--f-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.node .nv { font-family: var(--f-display); font-weight: 600; font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.node .ns { font-size: 11.5px; color: var(--ink-2); }
+.node.alert { background: var(--bad-soft); } .node.alert .nv { color: var(--bad); }
+.node.assumed .nk::after { content: " · assumption"; text-transform: none; letter-spacing: 0; color: var(--muted); }
+@media (max-width: 760px) { .chain { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .node, .node + .node { border: 1px solid var(--line); border-radius: 8px; } .node + .node::before { display: none; } }
+.views { display: flex; flex-wrap: wrap; gap: 6px; }
+.views .chip { padding: 5px 10px; }
+.assume-note { font-size: 11.5px; color: var(--muted); margin: 0; }
+
 /* ---- results ---- */
 main.out { display: grid; gap: 18px; min-width: 0; }
 .runbar { display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--muted); font-family: var(--f-mono); flex-wrap: wrap; }
@@ -149,8 +167,8 @@ main.out { display: grid; gap: 18px; min-width: 0; }
 .badge.good { background: var(--good-soft); color: var(--good); border-color: transparent; }
 .badge.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
 .verdict p { margin: 0; color: var(--ink); max-width: 90ch; }
-.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 1180px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 460px) { .tiles { grid-template-columns: minmax(0, 1fr); } }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
 .tile .k { font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
@@ -202,9 +220,9 @@ footer.foot a { color: var(--ink-2); }
 
 <div class="wrap">
   <header class="top">
-    <div class="eyebrow">Discrete-event simulation · Monte Carlo · DataCo supply chain</div>
-    <h1>DataCo Fulfilment Twin</h1>
-    <p class="lede">Test what a promotion does to delivery performance before you run it. Each Monte Carlo run simulates a year of orders, one by one, through dispatch and transit. Hundreds of runs show the spread of outcomes, not just the average.</p>
+    <div class="eyebrow">Supplier → inbound → warehouse → dispatch → customer · simulation · Monte Carlo</div>
+    <h1>DataCo Supply Chain Twin</h1>
+    <p class="lede">Test what a promotion does to the whole chain before you run it: supplier output, inbound stock, the warehouse and delivery to customers. Each Monte Carlo run simulates a year of orders, one by one. Hundreds of runs show the spread of outcomes, not just the average.</p>
     <div class="facts" id="facts"></div>
   </header>
 
@@ -230,7 +248,7 @@ footer.foot a { color: var(--ink-2); }
       </div>
 
       <div class="group">
-        <div class="group-title">Capacity</div>
+        <div class="group-title">Warehouse dispatch</div>
         <div class="field">
           <div class="field-head"><label for="capacity">Normal dispatch capacity</label><output id="capacityOut" for="capacity"></output></div>
           <input type="range" id="capacity" min="56" max="120" step="2">
@@ -239,6 +257,32 @@ footer.foot a { color: var(--ink-2); }
         <div class="field">
           <div class="field-head"><label for="surge">Surge during promotion</label><output id="surgeOut" for="surge"></output></div>
           <input type="range" id="surge" min="0" max="100" step="10">
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Upstream: supplier and stock</div>
+        <label class="check"><input type="checkbox" id="upstream"> Model the supplier and warehouse stock</label>
+        <p class="assume-note">Not in the DataCo data. These are assumptions you can change.</p>
+        <div class="field">
+          <div class="field-head"><label for="supCap">Supplier capacity</label><output id="supCapOut" for="supCap"></output></div>
+          <input type="range" id="supCap" min="100" max="250" step="5">
+          <p class="hint">As % of normal demand (352.7 units a day, from the data).</p>
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="lead">Inbound lead time</label><output id="leadOut" for="lead"></output></div>
+          <input type="range" id="lead" min="1" max="14" step="1">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="safety">Safety stock</label><output id="safetyOut" for="safety"></output></div>
+          <input type="range" id="safety" min="0" max="6" step="0.5">
+        </div>
+        <div class="field">
+          <span class="label" id="planLabel">Replenishment planning</span>
+          <div class="seg" role="group" aria-labelledby="planLabel" id="plan">
+            <button type="button" data-v="REACTIVE">From recent sales</button>
+            <button type="button" data-v="PROMO_AWARE">Promo plan shared</button>
+          </div>
         </div>
       </div>
 
@@ -291,8 +335,15 @@ footer.foot a { color: var(--ink-2); }
     <main class="out">
       <section class="card stage-card" aria-labelledby="yardTitle">
         <div class="stage-head">
-          <h2 id="yardTitle">Live dispatch yard</h2>
-          <p class="sub">One simulated year, played day by day. Boxes on the staging floor are orders waiting to ship (1 box = 4 orders). Each truck carries 8 orders, and lit dock doors show the day's dispatch capacity. Drag to rotate, scroll to zoom.</p>
+          <h2 id="yardTitle">Live supply chain, upstream to downstream</h2>
+          <p class="sub">One simulated year, played day by day, from the supplier's factory to customers' doors. Factory yard boxes are units ordered but not yet produced (1 box = 50 units). Inbound trucks are on the road for the lead time. Rack cartons are warehouse stock (1 carton = 2 units). Staging boxes are orders waiting to ship (1 box = 4 orders). Lit doors show dispatch capacity. Roofs show today's shipments, green for on time and red for late. Drag to rotate, scroll to zoom.</p>
+          <div class="views" role="group" aria-label="Camera view" id="views">
+            <button type="button" class="chip" data-v="chain" aria-pressed="true">Whole chain</button>
+            <button type="button" class="chip" data-v="supplier">Supplier</button>
+            <button type="button" class="chip" data-v="inbound">Inbound</button>
+            <button type="button" class="chip" data-v="warehouse">Warehouse</button>
+            <button type="button" class="chip" data-v="customers">Customers</button>
+          </div>
         </div>
         <div class="stage" id="yard">
           <div class="hud hud-left"><div class="hud-day" id="hudDay">Day 0</div><div class="hud-pill" id="hudPhase">Normal day</div></div>
@@ -301,12 +352,23 @@ footer.foot a { color: var(--ink-2); }
             <span>Shipped today</span><b id="hShip">–</b>
             <span>Waiting</span><b id="hWait">–</b>
             <span>Doors open</span><b id="hDoors">–</b>
+            <span>Warehouse stock</span><b id="hStock">–</b>
             <span class="opt">On time so far</span><b class="opt" id="hOn">–</b>
           </div>
+          <div class="tag" id="tagSupplier">Supplier factory</div>
+          <div class="tag" id="tagInbound">Inbound transit</div>
+          <div class="tag" id="tagCustomers">Customers</div>
           <div class="tag" id="tagStage">Orders waiting to ship</div>
           <div class="tag" id="tagDocks">Dock doors</div>
           <div class="tag" id="tagStore">Storage racks</div>
           <div class="nogl" id="noGl" hidden>The 3D view needs WebGL, which this browser has turned off. The Monte Carlo analysis below still works.</div>
+        </div>
+        <div class="chain" id="chainStrip" aria-label="Supply chain status today">
+          <div class="node assumed" id="nSup"><span class="nk">Supplier</span><span class="nv" id="nSupV">–</span><span class="ns" id="nSupS">–</span></div>
+          <div class="node assumed" id="nIn"><span class="nk">Inbound</span><span class="nv" id="nInV">–</span><span class="ns" id="nInS">–</span></div>
+          <div class="node" id="nDc"><span class="nk">Warehouse stock</span><span class="nv" id="nDcV">–</span><span class="ns" id="nDcS">–</span></div>
+          <div class="node" id="nDisp"><span class="nk">Dispatch</span><span class="nv" id="nDispV">–</span><span class="ns" id="nDispS">–</span></div>
+          <div class="node" id="nCust"><span class="nk">Customers</span><span class="nv" id="nCustV">–</span><span class="ns" id="nCustS">–</span></div>
         </div>
         <div class="transport">
           <button type="button" class="btn" id="playBtn">Pause</button>
@@ -356,6 +418,14 @@ footer.foot a { color: var(--ink-2); }
         <div class="chart tall"><canvas id="cFan" aria-label="Backlog fan chart"></canvas></div>
       </section>
 
+      <section class="card" aria-labelledby="upTitle">
+        <h2 id="upTitle">Upstream: stock and the bullwhip effect</h2>
+        <p class="sub" id="upSub">One simulated year (the same run as the 3D view). When the warehouse reorders from recent sales, a promotion makes its orders to the supplier swing harder than customer demand. That is the bullwhip effect. Sharing the promotion plan damps it.</p>
+        <div class="legend"><span><i class="sw" style="background:var(--ink-2)"></i>Customer demand (units/day)</span><span><i class="sw" style="background:#eb6834"></i>Warehouse orders to supplier (units/day)</span><span><i class="sw" style="background:var(--accent)"></i>Warehouse stock (units)</span></div>
+        <div class="chart tall"><canvas id="cUp" aria-label="Demand, replenishment orders and stock over one simulated year"></canvas></div>
+        <p class="chart-note" id="upNote"></p>
+      </section>
+
       <div class="pair">
         <section class="card" aria-labelledby="modeTitle">
           <h2 id="modeTitle">On time by shipping mode</h2>
@@ -375,9 +445,9 @@ footer.foot a { color: var(--ink-2); }
         <div>
           <h3>Flow per order</h3>
           <ul>
-            <li>Each day resamples a real day's order count (Oct 2016 – Sep 2017) and applies the promotion multiplier.</li>
-            <li>Every order gets a shipping mode from the real mix and a lead time from that mode's real distribution.</li>
-            <li>Once a day the warehouse ships up to its capacity, oldest first or premium modes first.</li>
+            <li>Each day resamples a real day's order count (Oct 2016 – Sep 2017) and applies the promotion multiplier. Every order gets a shipping mode, a lead time and a number of units from the real distributions.</li>
+            <li>The supplier ships up to its capacity each day, and goods reach the warehouse after the inbound lead time.</li>
+            <li>The warehouse ships up to its dispatch capacity, oldest first or premium first, and only while the units are in stock. It reorders daily up to (expected demand over lead time + 1 day) + safety stock.</li>
             <li>On time = days waiting + lead time ≤ promised days.</li>
           </ul>
         </div>
@@ -385,14 +455,16 @@ footer.foot a { color: var(--ink-2); }
           <h3>Checks</h3>
           <ul>
             <li>With no promotion the Python twin reproduces history within 0.25 percentage points (30 runs).</li>
-            <li>This browser engine matches the Python results on all 37 cross-checks: 12 promotion scenarios plus baseline, 500 runs each (<span class="mono">web/check_model.js</span>).</li>
-            <li>11 automated tests cover extreme conditions: zero demand, zero or unlimited capacity, order conservation.</li>
+            <li>With unlimited supply, the end-to-end model reproduces the dispatch twin exactly, run for run.</li>
+            <li>This browser engine matches the Python results on all 67 cross-checks: dispatch and end-to-end experiments, 500 runs each (<span class="mono">web/check_model.js</span>).</li>
+            <li>25 automated tests cover extreme conditions (zero demand, zero supplier capacity, unlimited capacity) and conservation of orders and units.</li>
           </ul>
         </div>
         <div>
           <h3>Assumptions to keep in mind</h3>
           <ul>
             <li>Capacity is not in the data. 64 orders/day is the busiest day observed; treat higher values as what-ifs.</li>
+            <li>Everything upstream (supplier capacity, inbound lead time, safety stock, planning) is an assumption. The data covers only orders and their delivery.</li>
             <li>Warehouse and carrier are one dispatch stage, and lead times don't stretch under load, so promotion results are likely optimistic.</li>
             <li>Customers don't cancel when delivery slows. The source dataset looks partly simulated.</li>
           </ul>
@@ -419,16 +491,18 @@ footer.foot a { color: var(--ink-2); }
   const $ = (id) => document.getElementById(id);
 
   // ---------------------------------------------------------------- presets
+  const UP = { upstream: true, supCap: 125, lead: 5, safety: 2, plan: "REACTIVE" };
+  const P = (o) => Object.assign({ promoMult: 1, promoDays: 14, spread: false, capacity: 64, surge: 0, policy: "current", extra: 0, rule: "FIFO" }, UP, o);
   const PRESETS = {
-    "Normal operations":       { promoMult: 1, promoDays: 14, spread: false, capacity: 64, surge: 0,  policy: "current", extra: 0, rule: "FIFO" },
-    "1.5× promo, no response": { promoMult: 1.5, promoDays: 14, spread: false, capacity: 64, surge: 0, policy: "current", extra: 0, rule: "FIFO" },
-    "1.5× promo, surge +50%":  { promoMult: 1.5, promoDays: 14, spread: false, capacity: 64, surge: 50, policy: "current", extra: 0, rule: "FIFO" },
-    "2× promo, surge +50%":    { promoMult: 2, promoDays: 14, spread: false, capacity: 64, surge: 50, policy: "current", extra: 0, rule: "FIFO" },
-    "2× promo, surge + quote": { promoMult: 2, promoDays: 14, spread: false, capacity: 64, surge: 50, policy: "current", extra: 3, rule: "FIFO" },
-    "2× promo, premium first": { promoMult: 2, promoDays: 14, spread: false, capacity: 64, surge: 0, policy: "current", extra: 0, rule: "PREMIUM_FIRST" },
-    "Realistic promises":      { promoMult: 1, promoDays: 14, spread: false, capacity: 64, surge: 0, policy: "0.75", extra: 0, rule: "FIFO" },
+    "Normal operations":            P({}),
+    "1.5× promo, no response":      P({ promoMult: 1.5 }),
+    "1.5× promo, warehouse surge":  P({ promoMult: 1.5, surge: 50 }),
+    "1.5× promo, coordinated plan": P({ promoMult: 1.5, surge: 50, plan: "PROMO_AWARE", supCap: 160 }),
+    "2× promo, coordinated + quote": P({ promoMult: 2, surge: 50, plan: "PROMO_AWARE", supCap: 160, extra: 3 }),
+    "2× promo, premium first":      P({ promoMult: 2, rule: "PREMIUM_FIRST" }),
+    "Realistic promises":           P({ policy: "0.75" }),
   };
-  let state = Object.assign({}, PRESETS["2× promo, surge +50%"]);
+  let state = Object.assign({}, PRESETS["1.5× promo, warehouse surge"]);
 
   const fmtPct = (x, d = 1) => Number.isFinite(x) ? (100 * x).toFixed(d) + "%" : "–";
   const fmtInt = (x) => Number.isFinite(x) ? Math.round(x).toLocaleString("en-US") : "–";
@@ -454,18 +528,23 @@ footer.foot a { color: var(--ink-2); }
     ["capacity", (v) => `${v} orders/day`],
     ["surge", (v) => (+v ? `+${v}%` : "none")],
     ["extra", (v) => (+v ? `+${v} days` : "none")],
+    ["supCap", (v) => `${v}% · ${Math.round(T.meanDailyUnits(CAL) * v / 100)} units/day`],
+    ["lead", (v) => `${v} day${+v === 1 ? "" : "s"}`],
+    ["safety", (v) => `${(+v).toFixed(1)} days`],
   ];
-  const keyOf = { promoMult: "promoMult", promoDays: "promoDays", capacity: "capacity", surge: "surge", extra: "extra" };
+  const keyOf = { promoMult: "promoMult", promoDays: "promoDays", capacity: "capacity", surge: "surge", extra: "extra",
+                  supCap: "supCap", lead: "lead", safety: "safety" };
   ranges.forEach(([id, fmt]) => {
     $(id).addEventListener("input", (e) => { state[keyOf[id]] = +e.target.value; $(id + "Out").textContent = fmt(e.target.value); markPreset(); schedule(); });
   });
   $("spread").addEventListener("change", (e) => { state.spread = e.target.checked; markPreset(); schedule(); });
+  $("upstream").addEventListener("change", (e) => { state.upstream = e.target.checked; syncControls(); schedule(); });
   function segment(id, key) {
     $(id).querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
       state[key] = b.dataset.v; syncControls(); schedule();
     }));
   }
-  segment("policy", "policy"); segment("rule", "rule");
+  segment("policy", "policy"); segment("rule", "rule"); segment("plan", "plan");
   ["reps", "tOnTime", "tBacklog", "tClear"].forEach((id) => $(id).addEventListener("change", () => {
     if (id === "reps") schedule(); else if (last) render(last);
   }));
@@ -476,6 +555,9 @@ footer.foot a { color: var(--ink-2); }
     $("spread").checked = state.spread;
     $("policy").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.policy)));
     $("rule").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.rule)));
+    $("plan").querySelectorAll("button").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.v === state.plan)); b.disabled = !state.upstream; });
+    $("upstream").checked = state.upstream;
+    ["supCap", "lead", "safety"].forEach((id) => { $(id).disabled = !state.upstream; });
     const p = policyPromise(state.policy) || CAL.currentPromise;
     $("policyHint").textContent = `Same Day ${p["Same Day"]}d · First ${p["First Class"]}d · Second ${p["Second Class"]}d · Standard ${p["Standard Class"]}d`;
     markPreset();
@@ -492,17 +574,20 @@ footer.foot a { color: var(--ink-2); }
     const capF = state.capacity / CAL.observedPeak;
     const promoDays = state.spread ? state.promoDays * 2 : state.promoDays;
     const promoMult = state.spread ? 1 + (state.promoMult - 1) / 2 : state.promoMult;
+    // upstream assumptions are shared by every scenario; only the planning method is a response
+    const chain = (plan) => state.upstream ? { supplierCapFactor: state.supCap / 100, inboundLead: state.lead, safetyDays: state.safety, planning: plan } : null;
     const common = { horizon: HORIZON, promoStart: PROMO_START, windowStart: PROMO_START, windowDays: WINDOW, capacityFactor: capF };
     return {
       scenario: T.scenario(Object.assign({}, common, {
         promise: policyPromise(state.policy), promoDays, promoMult, promoCapFactor: 1 + state.surge / 100,
-        promoExtraDays: state.extra, rule: state.rule })),
-      reference: T.scenario(Object.assign({}, common, { promoDays: state.promoDays, promoMult: state.promoMult })),
-      normal: T.scenario(Object.assign({}, common, { capacityFactor: 1, promoDays: 0, promoMult: 1 })),
+        promoExtraDays: state.extra, rule: state.rule, chain: chain(state.plan) })),
+      reference: T.scenario(Object.assign({}, common, { promoDays: state.promoDays, promoMult: state.promoMult, chain: chain("REACTIVE") })),
+      normal: T.scenario(Object.assign({}, common, { capacityFactor: 1, promoDays: 0, promoMult: 1, chain: chain("REACTIVE") })),
     };
   }
   function sameAsReference() {
-    return state.surge === 0 && state.extra === 0 && state.rule === "FIFO" && state.policy === "current" && !state.spread;
+    return state.surge === 0 && state.extra === 0 && state.rule === "FIFO" && state.policy === "current" && !state.spread
+      && (!state.upstream || state.plan === "REACTIVE");
   }
 
   // ---------------------------------------------------------------- run
@@ -578,6 +663,19 @@ footer.foot a { color: var(--ink-2); }
     return [`${diff > 0 ? "▲ +" : diff < 0 ? "▼ " : ""}${diff.toFixed(digits)}${unit} vs no response`, cls];
   }
 
+  function upstreamTiles(R, C, q) {
+    if (!state.upstream) {
+      return tile("Stockout days", "–", "", "Upstream not modelled", "Turn on the supplier and stock model", "flat") +
+             tile("Bullwhip ratio", "–", "", "Upstream not modelled", "", "flat");
+    }
+    const so = R.map((r) => r.stockoutDays), soC = C.map((r) => r.stockoutDays);
+    const bw = R.map((r) => r.bullwhip), bwC = C.map((r) => r.bullwhip);
+    const [d5, c5] = deltaText(S.mean(so) - S.mean(soC), " days", false, 1);
+    const [d6, c6] = deltaText(S.mean(bw) - S.mean(bwC), "", false, 2);
+    return tile("Stockout days", S.mean(so).toFixed(1), " days", `Days in the 60-day window with no stock to ship · 90% of runs: ${q(so, 0.05).toFixed(0)} – ${q(so, 0.95).toFixed(0)}`, d5, c5) +
+           tile("Bullwhip ratio", S.mean(bw).toFixed(2), "×", "Variance of warehouse orders to the supplier ÷ variance of customer demand", d6, c6);
+  }
+
   function render(L) {
     const { res, base, reps } = L;
     const R = res.scenario, C = res.reference;
@@ -601,7 +699,8 @@ footer.foot a { color: var(--ink-2); }
       tile("Peak dispatch backlog", fmtInt(S.mean(peak)), " orders", `90% of runs: ${fmtInt(q(peak, 0.05))} – ${fmtInt(q(peak, 0.95))}`, d2, c2) +
       tile("Days to clear backlog", anyNaN(clear) ? "> 1 yr" : S.mean(clear).toFixed(0), anyNaN(clear) ? "" : " days",
            anyNaN(clear) ? `${fmtPct(clearShare, 0)} of runs never clear` : `90% of runs: ${q(clear, 0.05).toFixed(0)} – ${q(clear, 0.95).toFixed(0)} days`, d3, c3) +
-      tile("Average dispatch wait", S.mean(wait).toFixed(1), " days", `90% of runs: ${q(wait, 0.05).toFixed(1)} – ${q(wait, 0.95).toFixed(1)} days`, d4, c4);
+      tile("Average dispatch wait", S.mean(wait).toFixed(1), " days", `90% of runs: ${q(wait, 0.05).toFixed(1)} – ${q(wait, 0.95).toFixed(1)} days`, d4, c4) +
+      upstreamTiles(R, C, q);
 
     // verdict
     const pBetter = S.share(diff, (x) => x > 0), dMean = S.mean(diff), p = S.pairedP(on, onC);
@@ -619,6 +718,12 @@ footer.foot a { color: var(--ink-2); }
       badge = tone === "good" ? "Improves" : tone === "bad" ? "Worse" : "No change";
       const sig = Number.isFinite(p) ? (p < 0.05 ? "statistically significant" : "not statistically significant") : "identical in every run";
       text = `<b>${dMean >= 0 ? "+" : ""}${(100 * dMean).toFixed(1)} percentage points of on-time delivery vs doing nothing</b> (${fmtPct(S.mean(on))} vs ${fmtPct(S.mean(onC))}). Better in ${fmtPct(pBetter, 0)} of ${reps} paired runs, ${sig}. Without a promotion: ${fmtPct(normal)}.`;
+    }
+    if (state.upstream && state.promoMult > 1) {
+      const so = S.mean(R.map((r) => r.stockoutDays)), soC = S.mean(C.map((r) => r.stockoutDays));
+      if (so >= 0.5) text += ` <b>Upstream:</b> the warehouse runs out of stock on ${so.toFixed(1)} days on average, so the bottleneck has moved to supply. Try sharing the promotion plan or more supplier capacity.`;
+      else if (soC >= 0.5) text += ` <b>Upstream:</b> stockouts drop from ${soC.toFixed(1)} days to ${so.toFixed(1)}.`;
+      else text += " <b>Upstream:</b> stock holds up. Dispatch capacity is the bottleneck.";
     }
     $("badge").textContent = badge; $("badge").className = "badge " + tone; $("verdict").innerHTML = text;
 
@@ -675,7 +780,8 @@ footer.foot a { color: var(--ink-2); }
       row(`Chance on-time delivery reaches ${(100 * target).toFixed(0)}%`, S.share(on, (x) => x >= target), S.share(onC, (x) => x >= target)) +
       row(`Chance the backlog exceeds ${tB.toLocaleString("en-US")} orders`, S.share(peak, (x) => x > tB), S.share(peakC, (x) => x > tB)) +
       row(`Chance the backlog clears within ${tC} days`, S.share(clear, (x) => x <= tC), S.share(clearC, (x) => x <= tC)) +
-      row(`Chance on-time falls below normal (${fmtPct(normal)}) by 5 pp or more`, S.share(on, (x) => x <= normal - 0.05), S.share(onC, (x) => x <= normal - 0.05));
+      row(`Chance on-time falls below normal (${fmtPct(normal)}) by 5 pp or more`, S.share(on, (x) => x <= normal - 0.05), S.share(onC, (x) => x <= normal - 0.05)) +
+      (state.upstream ? row("Chance the warehouse runs out of stock at least once", S.share(R.map((r) => r.stockoutDays), (x) => x > 0), S.share(C.map((r) => r.stockoutDays), (x) => x > 0)) : "");
 
     // backlog fan chart
     const total = R[0].path.length;
@@ -782,6 +888,21 @@ footer.foot a { color: var(--ink-2); }
     $("hArr").textContent = d.arrived; $("hShip").textContent = d.shipped; $("hWait").textContent = d.backlog.toLocaleString("en-US");
     $("hDoors").textContent = `${Math.min(12, Math.ceil((d.capacity === Infinity ? 96 : d.capacity) / 8))} of 12`;
     $("hOn").textContent = d.shippedTotal ? fmtPct(d.onTimeTotal / d.shippedTotal) : "–";
+    const c = d.chain, fmtU = (x) => Math.round(x).toLocaleString("en-US");
+    $("hStock").textContent = c && Number.isFinite(c.onHand) ? `${(c.onHand / c.meanUnits).toFixed(1)} days` : "unlimited";
+    $("nSupV").textContent = c ? `${fmtU(c.supplierShipped)} units` : "unlimited";
+    $("nSupS").textContent = c ? `shipped today · ${fmtU(c.supplierBacklog)} on order` : "not modelled";
+    $("nInV").textContent = c ? `${fmtU(c.inTransit)} units` : "–";
+    $("nInS").textContent = c ? `on the road · ${c.lead}-day lead time` : "not modelled";
+    $("nDcV").textContent = c && Number.isFinite(c.onHand) ? `${fmtU(c.onHand)} units` : "unlimited";
+    $("nDcS").textContent = c && Number.isFinite(c.onHand) ? (c.stockBlocked ? "out of stock: orders wait" : `${(c.onHand / c.meanUnits).toFixed(1)} days of cover`) : "not modelled";
+    $("nDc").classList.toggle("alert", !!(c && c.stockBlocked));
+    $("nDispV").textContent = `${d.shipped} orders`;
+    $("nDispS").textContent = `shipped today · ${d.backlog.toLocaleString("en-US")} waiting`;
+    $("nDisp").classList.toggle("alert", d.backlog > 0);
+    $("nCustV").textContent = d.shipped ? fmtPct(d.onTime / d.shipped, 0) : "–";
+    $("nCustS").textContent = "of today's shipments on time";
+    ["nSup", "nIn"].forEach((id) => $(id).classList.toggle("assumed", !!c));
     $("scrub").value = d.day;
     drawSpark(d.day);
   }
@@ -804,18 +925,30 @@ footer.foot a { color: var(--ink-2); }
     }
     g.fillStyle = css("--muted"); g.textAlign = "right"; g.fillText(`peak ${Math.max(...yardPath).toLocaleString("en-US")}`, w - 4, h - 8);
   }
-  const tags = [["tagStage", [0, 6, -18]], ["tagDocks", [33, 7.5, -2]], ["tagStore", [-30, 7, -31]]];
+  const tags = [["tagStage", [0, 6, -18]], ["tagDocks", [33, 7.5, -2]], ["tagStore", [-30, 7, -31]],
+                ["tagSupplier", [-232, 16, -20]], ["tagInbound", [-130, 6, 22]], ["tagCustomers", [150, 10, -20]]];
   function setupYard() {
     if (!window.THREE || !window.DispatchYard || !hasWebGL()) { $("noGl").hidden = false; return; }
     yard = DispatchYard.mount($("yard"), {
       twin: T, cal: CAL,
       onDay: hudDay,
       onState: (st) => { $("playBtn").textContent = st.playing ? "Pause" : "Play"; },
-      onFrame: () => { tags.forEach(([id, p]) => { const q = yard.project(p[0], p[1], p[2]); const e = $(id); e.style.left = q.x + "px"; e.style.top = q.y + "px"; }); },
+      onFrame: () => {
+        const w = $("yard").clientWidth, h = $("yard").clientHeight;
+        tags.forEach(([id, p]) => {
+          const q = yard.project(p[0], p[1], p[2]), e = $(id);
+          const show = q.x > 40 && q.x < w - 40 && q.y > 30 && q.y < h - 10;
+          e.style.visibility = show ? "visible" : "hidden"; e.style.left = q.x + "px"; e.style.top = q.y + "px";
+        });
+      },
     });
     yard.setSpeed(4);
     window.dispatchYard = yard;   // handy for poking at the scene from the console
     $("playBtn").addEventListener("click", () => yard.toggle());
+    $("views").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      $("views").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      yard.focus(b.dataset.v);
+    }));
     $("restartBtn").addEventListener("click", () => { yard.seek(YARD_START); yard.play(); });
     $("scrub").addEventListener("input", (e) => yard.seek(+e.target.value));
     $("speed").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
@@ -823,17 +956,59 @@ footer.foot a { color: var(--ink-2); }
       yard.setSpeed(+b.dataset.v);
     }));
     try { if (matchMedia("(prefers-reduced-motion: reduce)").matches) yard.pause(); } catch (e) {}
+    if ($("yard").clientWidth < 560) {               // the whole chain is too small on a phone: start on the warehouse
+      yard.focus("warehouse");
+      $("views").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === "warehouse")));
+    }
   }
   function yardScenario() {
     const sc = buildScenarios().scenario;
-    yardPath = Array.from(T.runOnce(sc, CAL, 1000, true).path);
+    const one = T.runOnce(sc, CAL, 1000, true);
+    yardPath = Array.from(one.path);
+    drawUpstream(one);
     $("scrub").max = yardPath.length - 1;
     if (yard) yard.setScenario(sc, { seed: 1000, startDay: YARD_START }); else drawSpark(null);
   }
   window.addEventListener("resize", () => drawSpark(+$("scrub").value));
 
+  let lastOne = null;
+  function drawUpstream(one) {
+    lastOne = one;
+    const cp = one.chainPaths;
+    if (!cp) {
+      if (charts.cUp) { charts.cUp.destroy(); delete charts.cUp; }
+      $("upNote").textContent = "The supplier and stock model is off: stock is treated as unlimited.";
+      return;
+    }
+    const n = Math.min(200, cp.demandUnits.length), days = Array.from({ length: n }, (_, i) => i);
+    const ink2 = css("--ink-2");
+    const promoEnd = PROMO_START + (state.spread ? 2 : 1) * state.promoDays;
+    const shade = { id: "upShade", beforeDatasetsDraw(c) {
+      if (state.promoMult === 1) return;
+      const x0 = c.scales.x.getPixelForValue(PROMO_START), x1 = c.scales.x.getPixelForValue(promoEnd), g = c.ctx;
+      g.save(); g.fillStyle = css("--grid"); g.fillRect(x0, c.chartArea.top, x1 - x0, c.chartArea.bottom - c.chartArea.top); g.restore();
+    } };
+    chart("cUp", {
+      type: "line",
+      data: { labels: days, datasets: [
+        { label: "Customer demand", data: Array.from(cp.demandUnits).slice(0, n), borderColor: ink2, borderWidth: 1.2, pointRadius: 0 },
+        { label: "Orders to supplier", data: Array.from(cp.reorder).slice(0, n), borderColor: "#eb6834", borderWidth: 2, pointRadius: 0 },
+        { label: "Warehouse stock", data: Array.from(cp.onHand).slice(0, n), borderColor: css("--accent"), borderWidth: 2, pointRadius: 0 },
+      ] },
+      options: baseOpts({
+        plugins: Object.assign(baseOpts().plugins, { tooltip: Object.assign(baseOpts().plugins.tooltip, {
+          callbacks: { title: (it) => `Day ${it[0].label}`, label: (it) => ` ${it.dataset.label}: ${Math.round(it.raw).toLocaleString("en-US")} units` } }) }),
+        scales: Object.assign(baseOpts().scales, {
+          x: Object.assign(baseOpts().scales.x, { type: "linear", min: 0, max: n - 1, title: { display: true, text: "Simulation day (promotion shaded)", color: ink2, font: { size: 11 } } }),
+          y: Object.assign(baseOpts().scales.y, { title: { display: true, text: "Units", color: ink2, font: { size: 11 } } }) }),
+      }),
+      plugins: [shade],
+    });
+    $("upNote").textContent = `This run: bullwhip ratio ${one.bullwhip.toFixed(2)}× · ${one.stockoutDays} stockout day${one.stockoutDays === 1 ? "" : "s"} in the 60-day window · lowest stock ${Math.round(one.minOnHand).toLocaleString("en-US")} units.`;
+  }
+
   // re-render charts in the new palette when the theme changes
-  const rerender = () => { if (last) render(last); };
+  const rerender = () => { if (last) render(last); if (lastOne) drawUpstream(lastOne); };
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender); } catch (e) {}
   new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 

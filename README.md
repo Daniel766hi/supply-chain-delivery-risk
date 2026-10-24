@@ -1,6 +1,6 @@
 # Supply Chain Delivery Risk: why DataCo misses its delivery promise
 
-**SQL (PostgreSQL) · Power BI · Discrete-event simulation (Python SimPy, JavaScript) · Monte Carlo · Supply chain analytics**
+**SQL (PostgreSQL) · Power BI · End-to-end supply chain simulation (Python SimPy, JavaScript, Three.js) · Monte Carlo · Supply chain analytics**
 
 An end-to-end analysis of 180,519 order lines (65,752 orders, Jan 2015 – Jan 2018) from a global sporting-goods retailer. I built a cleaned star-schema warehouse in PostgreSQL, tested the usual explanations for late delivery one by one, and modelled how changing delivery promises would change on-time performance. A calibrated digital twin of the fulfilment flow then stress-tests promotional demand shocks and the responses to them. The results feed a four-page Power BI dashboard (build guide: [docs/powerbi_guide.md](docs/powerbi_guide.md)).
 
@@ -124,9 +124,27 @@ The SQL analysis explains normal operations. A promotion is different: demand ri
 
 Each response was compared with "no action" over 30 paired replications. All gains are significant at p < 0.001 except premium-first at 1.5x.
 
-**Try it in the browser:** a [3D dispatch yard and Monte Carlo version of the twin](web/README.md) run entirely in the page. Trucks back into the dock doors and the backlog piles up on the warehouse floor as the simulation plays out. It shows the spread of outcomes across hundreds of simulated years, the chance of hitting service targets, and how reliably each response beats doing nothing. Open `web/index.html`, or the GitHub Pages link once Pages is enabled.
+### End to end: from supplier to customer
 
-![3D dispatch yard](web/yard_screenshot.png)
+The dispatch twin assumes the warehouse always has stock. I extended it upstream ([end-to-end model](simulation/README.md#6-end-to-end-model-supplier-to-customer)) with a supplier, inbound transport and warehouse stock managed with an order-up-to policy. Units per order are calibrated from the data. Supplier capacity (1.25× normal demand), inbound lead time (5 days) and safety stock (2 days) are assumptions, varied in a sensitivity test. With unlimited supply the model reproduces the dispatch twin exactly.
+
+| 1.5x promotion, responses added step by step | On time | Stockout days |
+|---|---|---|
+| No action | 22.8% | 0.0 |
+| Dispatch surge +50% | 32.0% | 10.9 |
+| + share the promotion plan with the supplier | 39.6% | 6.7 |
+| + supplier flex capacity (1.6×) | 43.0% | 0.0 |
+| + quote 3 extra days on promotion orders | 59.7% | 0.0 |
+
+- **Fixing dispatch moves the bottleneck upstream.** The dispatch-only twin says +50% surge restores a 1.5x promotion to 43.0%. End to end it reaches only 32.0%, because the warehouse runs out of stock on about 11 of the 60 days.
+- **Reacting to recent sales creates a bullwhip effect.** Under reactive planning, the warehouse's orders to the supplier vary 5.0× as much as customer demand in normal operations. Sharing the promotion plan brings that to 1.0× and cuts stockout days from 10.9 to 6.7.
+- **A coordinated plan restores normal service.** Warehouse surge, a shared plan and supplier flex capacity together bring on-time delivery back to the no-promotion level. Quoting longer delivery times adds the rest.
+
+![Bullwhip effect](simulation/results/chain_bullwhip.png)
+
+**Try it in the browser:** a [3D supply chain twin with Monte Carlo analysis](web/README.md) runs entirely in the page. Watch goods move from the supplier's factory, along the inbound road, through the warehouse racks and dock doors, and out to customers, all driven by the simulation. It shows the spread of outcomes across hundreds of simulated years, the chance of hitting service targets or running out of stock, and how reliably each response beats doing nothing. Open `web/index.html`, or the GitHub Pages link once Pages is enabled.
+
+![3D supply chain twin](web/chain_screenshot.png)
 
 There is also a Python **interactive app** (`streamlit run simulation/app.py`) for testing any promotion and response combination live:
 
@@ -138,7 +156,7 @@ There is also a Python **interactive app** (`streamlit run simulation/app.py`) f
 2. **Re-design or re-price Second Class.** Customers choosing it get no speed advantage over Standard Class. Find out whether these orders are routed through the Standard network.
 3. **Set promises from the lead-time distribution, not from targets.** Use a stated on-time objective (e.g. 75% or 90%) and the scenario table to pick each mode's promise. Review it quarterly.
 4. **Don't fund regional or carrier changes on this evidence.** Location differences are too small to justify them.
-5. **Plan promotions and fulfilment capacity together.** Size each promotion against dispatch capacity, line up surge capacity in advance, and quote longer delivery times on promotional orders. The twin shows about 25% headroom absorbs a 1.5x promotion.
+5. **Plan promotions with the whole chain, not just the warehouse.** Size each promotion against dispatch capacity and supply. Share the promotion plan with the supplier ahead of time, agree flex capacity, line up warehouse surge capacity, and quote longer delivery times on promotional orders. Surge capacity on its own just moves the bottleneck to stock.
 6. **Collect the missing data:** carrier, warehouse and handover timestamps, plus complaints and returns. That would show *why* lead times vary and what late delivery costs in lost customers.
 
 ## 7. Limitations
@@ -147,7 +165,7 @@ There is also a Python **interactive app** (`streamlit run simulation/app.py`) f
 - **Last four months behave differently.** From Oct 2017 order counts rise while average order value roughly halves (Q5b), which suggests a product-mix change or partial data. Trend conclusions rest mainly on 2015 to Sep 2017.
 - **"Sales in late orders" is exposure, not loss.** There is no cost, penalty or churn data to turn late delivery into lost money.
 - **The promise scenarios change only the promise.** They measure how much of the problem is promise-setting. They are not a forecast of operational improvement.
-- **The twin's dispatch capacity is an assumption** (the busiest observed day). Its limitations are listed in [simulation/README.md](simulation/README.md#5-limitations).
+- **The twin's dispatch capacity and everything upstream are assumptions** (supplier capacity, inbound lead time, safety stock). Its limitations are listed in [simulation/README.md](simulation/README.md#5-limitations).
 - Country and city names are in Spanish (e.g. *Estados Unidos*), as in the source.
 
 ## 8. Reproduce it
@@ -180,7 +198,7 @@ streamlit run simulation/app.py   # interactive twin
 │   ├── 06_business_analysis.sql   Q1–Q8 business questions
 │   └── 07_simulation_inputs.sql   calibration data for the digital twin
 ├── simulation/                    digital twin (SimPy): model, app, tests, experiments, results
-├── web/                           browser twin: 3D dispatch yard + Monte Carlo (one HTML file, no install)
+├── web/                           browser twin: 3D supply chain + Monte Carlo (one HTML file, no install)
 ├── results/                       query outputs (the evidence for the findings)
 ├── powerbi/                       .pbix dashboard
 ├── docs/

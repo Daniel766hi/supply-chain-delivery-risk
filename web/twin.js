@@ -55,7 +55,18 @@
     rule: "FIFO",               // or "PREMIUM_FIRST"
     windowStart: 30,
     windowDays: 60,
+    // Upstream (supplier -> inbound -> DC stock). null = unlimited stock (dispatch-only twin).
+    // { supplierCapFactor: x mean daily units (null = unlimited), inboundLead: days,
+    //   safetyDays: days of mean demand, planning: "REACTIVE" | "PROMO_AWARE" }
+    chain: null,
   };
+  const CHAIN_DEFAULTS = { supplierCapFactor: 1.25, inboundLead: 5, safetyDays: 2, planning: "REACTIVE" };
+  const FORECAST_ALPHA = 0.2, WARM_UP_DAYS = 10;
+  function meanDailyUnits(cal) {
+    let e = 0, prev = 0;
+    cal.unitsValues.forEach(function (u, i) { e += u * (cal.unitsCdf[i] - prev); prev = cal.unitsCdf[i]; });
+    return cal.dailyDemand.reduce(function (a, b) { return a + b; }, 0) / cal.dailyDemand.length * e;
+  }
   function scenario(over) { return Object.assign({}, DEFAULTS, over || {}); }
 
   function promiseForTarget(cal, target) {
@@ -89,9 +100,35 @@
     const path = new Int32Array(total);
     let queued = 0, day = 0, shippedTotal = 0, onTimeTotal = 0;
 
+    // upstream state (same initial pipeline as simulation/twin/chain.py)
+    const ch = sc.chain ? Object.assign({}, CHAIN_DEFAULTS, sc.chain) : null;
+    const rU = ch ? stream(seed, 4) : null;
+    const units = [];
+    let meanUnits = 0, L = 0, supplierCap = Infinity, safety = 0, unlimited = true;
+    let arrivals = null, inTransit = 0, onHand = Infinity, supplierBacklog = 0, forecast = 0, owed = 0;
+    const cp = {};
+    if (ch) {
+      meanUnits = meanDailyUnits(cal); L = ch.inboundLead;
+      unlimited = ch.supplierCapFactor == null;
+      supplierCap = unlimited ? Infinity : meanUnits * ch.supplierCapFactor;
+      safety = ch.safetyDays * meanUnits;
+      arrivals = new Float64Array(total + L + 1);
+      for (let d = 0; d < L; d++) arrivals[d] = meanUnits;
+      inTransit = meanUnits * L; onHand = unlimited ? Infinity : safety + meanUnits; forecast = meanUnits;
+      ["onHand", "inTransit", "supplierBacklog", "demandUnits", "reorder", "received", "supplierShipped", "stockBlocked"]
+        .forEach(function (k) { cp[k] = new Float64Array(total); });
+    }
+    const multAt = function (t) { return t >= sc.promoStart && t < promoEnd ? sc.promoMult : 1; };
+
     function step() {
       const inPromo = day >= sc.promoStart && day < promoEnd;
-      let arrived = 0;
+      let arrived = 0, supplierShip = 0, received = 0, demandUnits = 0;
+      if (ch && !unlimited) {                       // 1-2. supplier ships, DC receives
+        supplierShip = Math.min(supplierCap, supplierBacklog);
+        supplierBacklog -= supplierShip;
+        arrivals[day + L] += supplierShip; inTransit += supplierShip;
+        received = arrivals[day]; inTransit -= received; onHand += received;
+      }
       if (day < sc.horizon) {
         const mult = inPromo ? sc.promoMult : 1;
         const n = Math.round(daily[Math.floor(rD() * nDaily)] * mult);
@@ -104,24 +141,54 @@
           const id = placed.length;
           placed.push(day); mode.push(m); lead.push(cal.leadDays[modes[m]][j]);
           promise.push(promiseDays[m] + (isPromo ? sc.promoExtraDays : 0)); disp.push(-1);
+          if (ch) {
+            const uu = rU(); let ui = 0;
+            while (ui < cal.unitsCdf.length - 1 && cal.unitsCdf[ui] < uu) ui++;
+            units.push(cal.unitsValues[ui]); demandUnits += cal.unitsValues[ui]; owed += cal.unitsValues[ui];
+          }
           queues[premium ? m : 0].a.push(id); queued++;
         }
         arrived = n;
       }
       const capacity = capBase === Infinity ? Infinity : Math.round(capBase * (inPromo ? sc.promoCapFactor : 1));
-      let cap = capacity, shipped = 0, onTime = 0;
-      for (let q = 0; q < queues.length && cap > 0; q++) {
+      let cap = capacity, shipped = 0, onTime = 0, blocked = false, shippedUnits = 0;
+      for (let q = 0; q < queues.length && cap > 0 && !blocked; q++) {
         const Q = queues[q];
         while (cap > 0 && Q.h < Q.a.length) {
-          const o = Q.a[Q.h++];
+          const o = Q.a[Q.h];
+          if (ch && onHand < units[o]) { blocked = true; break; }   // first come, first served
+          Q.h++;
+          if (ch) { onHand -= units[o]; owed -= units[o]; shippedUnits += units[o]; }
           disp[o] = day; cap--; queued--; shipped++;
           if (day - placed[o] + lead[o] <= promise[o]) onTime++;
         }
       }
       shippedTotal += shipped; onTimeTotal += onTime;
       path[day] = queued;
+      let reorder = 0;
+      if (ch && !unlimited) {                       // 5. order-up-to replenishment
+        let expected;
+        if (ch.planning === "PROMO_AWARE") {
+          expected = 0;
+          for (let t = day + 1; t <= day + L + 1; t++) expected += meanUnits * multAt(t);
+        } else {
+          forecast = FORECAST_ALPHA * demandUnits + (1 - FORECAST_ALPHA) * forecast;
+          expected = forecast * (L + 1);
+        }
+        reorder = Math.max(0, expected + safety - (onHand + inTransit + supplierBacklog - owed));
+        supplierBacklog += reorder;
+      }
+      if (ch) {
+        cp.onHand[day] = unlimited ? NaN : onHand; cp.inTransit[day] = inTransit; cp.supplierBacklog[day] = supplierBacklog;
+        cp.demandUnits[day] = demandUnits; cp.reorder[day] = reorder; cp.received[day] = received;
+        cp.supplierShipped[day] = supplierShip; cp.stockBlocked[day] = blocked ? 1 : 0;
+      }
       const out = { day: day, arrived: arrived, shipped: shipped, onTime: onTime, backlog: queued,
-                    capacity: capacity, inPromo: inPromo, shippedTotal: shippedTotal, onTimeTotal: onTimeTotal };
+                    capacity: capacity, inPromo: inPromo, shippedTotal: shippedTotal, onTimeTotal: onTimeTotal,
+                    chain: ch ? { onHand: onHand, inTransit: inTransit, supplierBacklog: supplierBacklog, demandUnits: demandUnits,
+                                  reorder: reorder, received: received, supplierShipped: supplierShip, stockBlocked: blocked,
+                                  shippedUnits: shippedUnits, meanUnits: meanUnits, safety: safety, lead: L,
+                                  supplierCap: supplierCap } : null };
       day++;
       return out;
     }
@@ -145,7 +212,29 @@
         if (d >= sc.promoStart && path[d] > 0) lastBusy = d;
       }
       const clear = lastBusy < 0 ? 0 : (path[total - 1] > 0 ? NaN : lastBusy + 1 - sc.promoStart);
+      let sameDay = 0, stockoutDays = NaN, minOnHand = NaN, avgOnHandDays = NaN, bullwhip = NaN, peakSupplier = NaN;
+      for (let i = 0; i < placed.length; i++) if (placed[i] >= lo && placed[i] < hi && disp[i] === placed[i]) sameDay++;
+      if (ch) {
+        stockoutDays = 0; peakSupplier = 0;
+        for (let d = lo; d < hi; d++) stockoutDays += cp.stockBlocked[d];
+        for (let d = 0; d < total; d++) peakSupplier = Math.max(peakSupplier, cp.supplierBacklog[d]);
+        if (!unlimited) {
+          minOnHand = Infinity; let s = 0;
+          for (let d = lo; d < hi; d++) { minOnHand = Math.min(minOnHand, cp.onHand[d]); s += cp.onHand[d]; }
+          avgOnHandDays = s / (hi - lo) / meanUnits;
+          const v = function (arr) {
+            let m = 0; const n2 = sc.horizon - WARM_UP_DAYS;
+            for (let d = WARM_UP_DAYS; d < sc.horizon; d++) m += arr[d]; m /= n2;
+            let q = 0; for (let d = WARM_UP_DAYS; d < sc.horizon; d++) q += (arr[d] - m) * (arr[d] - m);
+            return q / n2;
+          };
+          const dv = v(cp.demandUnits); bullwhip = dv > 0 ? v(cp.reorder) / dv : NaN;
+        }
+      }
       return {
+        sameDay: n ? sameDay / n : NaN, stockoutDays: stockoutDays, minOnHand: minOnHand,
+        avgOnHandDays: avgOnHandDays, bullwhip: bullwhip, peakSupplierBacklog: peakSupplier,
+        chainPaths: keepPath && ch ? cp : null,
         onTime: n ? ok / n : NaN,
         byMode: modeN.map(function (c, i) { return c ? modeOk[i] / c : NaN; }),
         wait: nDisp ? waitSum / nDisp : NaN,
@@ -156,7 +245,14 @@
       };
     }
 
-    return { step: step, summary: summary, total: total, done: function () { return day >= total; } };
+    // inbound shipments still on the road at the end of `day`: [{ shipped, arrives, units }]
+    function inbound() {
+      const out = [];
+      if (!ch || unlimited) return out;
+      for (let s = Math.max(0, day - L); s < day; s++) if (cp.supplierShipped[s] > 0) out.push({ shipped: s, arrives: s + L, units: cp.supplierShipped[s] });
+      return out;
+    }
+    return { step: step, summary: summary, inbound: inbound, total: total, done: function () { return day >= total; } };
   }
 
   function runOnce(sc, cal, seed, keepPath) {
@@ -229,7 +325,7 @@
   }
 
   return {
-    scenario: scenario, runOnce: runOnce, createRun: createRun, monteCarlo: monteCarlo, promiseForTarget: promiseForTarget,
+    scenario: scenario, chainDefaults: CHAIN_DEFAULTS, meanDailyUnits: meanDailyUnits, runOnce: runOnce, createRun: createRun, monteCarlo: monteCarlo, promiseForTarget: promiseForTarget,
     stats: { mean: mean, sd: sd, quantile: quantile, ci95: ci95, share: share, pairedP: pairedP },
   };
 });
