@@ -1,0 +1,12 @@
+# Raw data: download it yourself, see data/README.md
+data/*.csv
+data/*.zip
+
+# Power BI temp/backup files
+*.pbix.bak
+~$*.pbix
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
