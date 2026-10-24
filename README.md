@@ -124,7 +124,9 @@ The SQL analysis explains normal operations. A promotion is different: demand ri
 
 Each response was compared with "no action" over 30 paired replications. All gains are significant at p < 0.001 except premium-first at 1.5x.
 
-![Backlog after a 2x promotion](simulation/results/backlog_2x_promo.png)
+The twin has an **interactive app** (`streamlit run simulation/app.py`) for testing any promotion and response combination live:
+
+![Digital twin app](simulation/results/app_screenshot.png)
 
 ## 6. Recommendations
 
@@ -158,6 +160,7 @@ Then build the dashboard with **[docs/powerbi_guide.md](docs/powerbi_guide.md)**
 ```powershell
 pip install -r simulation/requirements.txt
 python simulation/run_experiments.py
+streamlit run simulation/app.py   # interactive twin
 ```
 
 ## 9. Repository structure
@@ -172,7 +175,7 @@ python simulation/run_experiments.py
 │   ├── 05_kpi_views.sql           KPI views (mart schema)
 │   ├── 06_business_analysis.sql   Q1–Q8 business questions
 │   └── 07_simulation_inputs.sql   calibration data for the digital twin
-├── simulation/                    digital twin (SimPy): model, tests, experiments, results
+├── simulation/                    digital twin (SimPy): model, app, tests, experiments, results
 ├── results/                       query outputs (the evidence for the findings)
 ├── powerbi/                       .pbix dashboard
 ├── docs/

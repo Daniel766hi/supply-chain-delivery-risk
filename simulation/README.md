@@ -6,6 +6,21 @@ A discrete-event simulation (Python, SimPy) of DataCo's order-to-delivery flow, 
 
 This extends my undergraduate thesis, which simulated mitigation strategies for promotion-driven demand shocks in digital retail supply chains (Vensim). The twin applies the same discipline in a discrete-event model on real data: scenario analysis, sensitivity analysis, extreme-condition tests and paired statistical comparison.
 
+## Interactive app
+
+```powershell
+pip install -r simulation/requirements.txt
+streamlit run simulation/app.py            # opens http://localhost:8501
+```
+
+Pick a preset or set your own promotion (size, length, spread), capacity (normal and surge), customer promise (policy, extra quoted days) and dispatch rule. The app runs the SimPy model live and compares your scenario with "no response" on the same random draws (paired runs). It shows:
+- on-time delivery, peak backlog, recovery time and dispatch wait, each with its difference vs no response
+- a one-line verdict, including whether the difference is statistically significant
+- backlog over time with a 10th–90th percentile band, on-time rate by shipping mode, and demand vs dispatch capacity
+- per-run results as a CSV download, the saved 30-run study, and the model's assumptions and validation
+
+![Digital twin app](results/app_screenshot.png)
+
 ## 1. Model
 
 ```mermaid
@@ -114,6 +129,7 @@ pip install -r simulation/requirements.txt
 python -m pytest simulation/tests          # 11 checks
 python simulation/run_validation.py        # ~10 s
 python simulation/run_experiments.py       # ~2-3 min, writes simulation/results/
+streamlit run simulation/app.py            # interactive app
 ```
 
 The calibration CSVs in `inputs/` are committed, so the twin runs without the database. To regenerate them from PostgreSQL: `psql -U postgres -d dataco -f sql/07_simulation_inputs.sql`.
@@ -128,5 +144,6 @@ simulation/
 ├── tests/test_model.py      extreme-condition and logic tests
 ├── run_validation.py        twin vs history
 ├── run_experiments.py       E1-E3 + charts
+├── app.py                   interactive Streamlit front end
 └── results/                 CSV tables and PNG charts
 ```

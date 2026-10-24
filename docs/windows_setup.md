@@ -93,6 +93,7 @@ pip install -r simulation/requirements.txt
 python -m pytest simulation/tests          # expected: 11 passed
 python simulation/run_validation.py        # twin vs history, about 10 seconds
 python simulation/run_experiments.py       # about 2-3 minutes, writes simulation/results/
+streamlit run simulation/app.py            # interactive app in your browser (Ctrl+C to stop)
 ```
 
 The twin reads `simulation/inputs/*.csv`, which step 07 regenerates from the database. These files are also committed, so the twin runs even without PostgreSQL. Results should match the committed files in `simulation/results/` exactly (fixed random seeds).
