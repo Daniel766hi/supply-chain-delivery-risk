@@ -1,0 +1,16 @@
+ check_no |                       check_name                        |  expected   |   actual    | status 
+----------+---------------------------------------------------------+-------------+-------------+--------
+        1 | Every raw row reaches staging                           |      180519 |      180519 | PASS
+        2 | Every order line reaches fact_order_lines               |      180519 |      180519 | PASS
+        3 | One fact_orders row per distinct order                  |       65752 |       65752 | PASS
+        4 | Net sales: raw total = order-line total                 |    33054402 |    33054402 | PASS
+        5 | Net sales: order-line total = order total               | 33054402.04 | 33054402.04 | PASS
+        6 | Profit: order-line total = order total                  |  3966902.97 |  3966902.97 | PASS
+        7 | Recomputed is_late matches source flag (shipped orders) |           0 |           0 | PASS
+        8 | Cancelled orders have no delivery outcome               |           0 |           0 | PASS
+        9 | Orders scheduled with the promise of their mode         |           0 |           0 | PASS
+       10 | No order without a date in dim_date                     |           0 |           0 | PASS
+       11 | No negative quantities or net sales                     |           0 |           0 | PASS
+       12 | Net sales = gross sales - discount (within 1 cent)      |           0 |           0 | PASS
+(12 rows)
+

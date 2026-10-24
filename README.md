@@ -2,13 +2,13 @@
 
 **SQL (PostgreSQL) · Power BI · Supply chain analytics**
 
-An end-to-end analysis of 180,519 order lines (65,752 orders, Jan 2015 – Jan 2018) from a global sporting-goods retailer. I built a cleaned star-schema warehouse in PostgreSQL, tested the usual explanations for late delivery one by one, and modelled how changing delivery promises would change on-time performance. Results go to a four-page Power BI dashboard.
+An end-to-end analysis of 180,519 order lines (65,752 orders, Jan 2015 – Jan 2018) from a global sporting-goods retailer. I built a cleaned star-schema warehouse in PostgreSQL, tested the usual explanations for late delivery one by one, and modelled how changing delivery promises would change on-time performance. The results feed a four-page Power BI dashboard (build guide: [docs/powerbi_guide.md](docs/powerbi_guide.md)).
 
-> **Headline:** {{LATE_RATE}} of shipped orders arrive later than promised. The cause is not market, customer segment or demand volume. It is the delivery promise set for each shipping mode. First Class misses its 1-day promise on {{FC_LATE_RATE}} of orders, and Second Class is no faster than Standard Class.
+> **Headline:** 57.3% of shipped orders arrive later than promised. The cause is not market, customer segment or demand volume. It is the delivery promise set for each shipping mode. First Class misses its 1-day promise on 100% of orders, and Second Class is no faster than Standard Class.
 
-<!-- Placeholders {{LIKE_THIS}} are filled from results/06_analysis_output.txt. See docs/results_placeholders.md. -->
+Every number below comes from [results/06_analysis_output.txt](results/06_analysis_output.txt); [docs/results_placeholders.md](docs/results_placeholders.md) maps each one to its query.
 
-![Executive overview](docs/images/01_overview.png)
+<!-- ![Executive overview](docs/images/01_overview.png) -->
 
 ---
 
@@ -67,7 +67,7 @@ flowchart LR
 2. **Star schema** ([03_build_warehouse.sql](sql/03_build_warehouse.sql)): `fact_orders` (65,752 rows) and `fact_order_lines` (180,519), plus date, customer, geography, shipping-mode and product dimensions, with primary and foreign keys enforced.
 3. **Automated validation** ([04_validate_warehouse.sql](sql/04_validate_warehouse.sql)): 12 reconciliation checks (row counts, sales and profit totals, flag logic, key integrity), each PASS/FAIL.
 4. **Hypothesis-driven analysis** ([05_kpi_views.sql](sql/05_kpi_views.sql), [06_business_analysis.sql](sql/06_business_analysis.sql)). Each candidate driver is tested on the same metric (late rate of shipped orders), so the drivers can be ruled out against each other. SQL techniques: CTEs, window functions (`RANK`, `LAG`, `LEAD`, `ROW_NUMBER`, running and rolling sums), `PERCENTILE_CONT`, `FILTER` aggregates, `GENERATE_SERIES` scenario grids.
-5. **Power BI** ([docs/powerbi_guide.md](docs/powerbi_guide.md)): Import model on the star schema, 28 DAX measures (time intelligence, `CROSSFILTER`, a what-if parameter). Headline cards reconciled to the SQL output.
+5. **Power BI** ([docs/powerbi_guide.md](docs/powerbi_guide.md)): Import model on the star schema, 28 DAX measures (time intelligence, `CROSSFILTER`, a what-if parameter). Headline cards are reconciled to the SQL output before any visual is built.
 
 ### Data model
 
@@ -84,33 +84,33 @@ erDiagram
 ## 4. Findings
 
 **1. Late delivery is the norm, not the exception.**
-{{LATE_RATE}} of {{SHIPPED_ORDERS}} shipped orders arrived later than promised, and those orders carry {{NET_SALES_LATE}} of net sales ({{LATE_SALES_SHARE}} of shipped sales).
+57.3% of 62,897 shipped orders arrived later than promised, and those orders carry $18.1M of net sales (57.1% of shipped sales).
 
 **2. Where and who don't explain it. How it ships does.**
-Late rates barely move across markets (spread {{MARKET_SPREAD_PP}} pp), customer segments ({{SEGMENT_SPREAD_PP}} pp) or regions ({{REGION_SPREAD_PP}} pp). Across shipping modes the spread is **{{MODE_SPREAD_PP}} pp**. A regional or carrier fix would target the wrong problem.
+Late rates barely move across markets (spread 1.1 pp) or customer segments (0.6 pp), and even across 23 regions the gap is only 7.5 pp. Across shipping modes the spread is **60.2 pp**. A regional or carrier fix would target the wrong problem.
 
-![Root cause](docs/images/02_root_cause.png)
+<!-- ![Root cause](docs/images/02_root_cause.png) -->
 
 **3. Two shipping modes have promises they can't keep.**
-- **First Class** promises 1 day and takes {{FC_ACTUAL_DAYS}} days on average: late on {{FC_LATE_RATE}} of orders.
-- **Second Class** promises 2 days but averages {{SC_AVG_DAYS}} days, the same as Standard Class ({{STD_AVG_DAYS}} days). Its late rate is {{SC_LATE_RATE}}, against {{STD_LATE_RATE}} for Standard.
-- Together these two modes are {{FC_SC_SHARE_OF_ORDERS}} of shipped orders but {{FC_SC_SHARE_OF_LATE}} of late orders.
+- **First Class** promises 1 day and takes 2.0 days on average: late on 100% of orders.
+- **Second Class** promises 2 days but averages 4.0 days, the same as Standard Class (4.0 days). Its late rate is 80.0%, against 39.9% for Standard.
+- Together these two modes are 34.8% of shipped orders but 53.8% of late orders.
 
 **4. Volume is not the constraint.**
-From October 2017 average monthly orders rose {{VOLUME_STEP_UP_PCT}} against the prior 12 months, while the late rate stayed at {{LATE_RATE_AFTER}} (from {{LATE_RATE_BEFORE}}). The network absorbed the extra volume without slipping further, which points away from capacity as the cause.
+From October 2017 average monthly orders rose 21.0% against the prior 12 months, while the late rate moved only from 57.1% to 57.6%. The network absorbed the extra volume without slipping further, which points away from capacity as the cause.
 
 **5. Realistic promises would change the picture.**
-Holding today's lead times fixed, setting each mode's promise to the shortest one that is met at least 75% of the time would lift network on-time delivery from {{ONTIME_CURRENT}} to {{ONTIME_T75}}. The cost is {{DAYS_ADDED_T75}} extra promised days per order on average.
+Holding today's lead times fixed, setting each mode's promise to the shortest one that is met at least 75% of the time would lift network on-time delivery from 42.7% to 84.1%. The cost is 1.4 extra promised days per order on average.
 
-![Promise scenario](docs/images/03_promise_scenario.png)
+<!-- ![Promise scenario](docs/images/03_promise_scenario.png) -->
 
 **6. No measurable effect on repeat purchase in this data.**
-Customers whose first order was late reordered within 180 days at {{REPEAT_LATE}}, against {{REPEAT_ONTIME}} for on-time first orders. The dataset has no complaints, returns or reviews, so the customer cost of lateness can't be measured here. That is a gap to close, not proof that lateness is harmless.
+Customers whose first order was late reordered within 180 days at 56.4%, against 55.1% for on-time first orders. The dataset has no complaints, returns or reviews, so the customer cost of lateness can't be measured here. That is a gap to close, not proof that lateness is harmless.
 
 **7. Revenue leakage is a separate, smaller issue.**
-Cancelled and suspected-fraud orders account for {{LEAKED_SALES}} ({{LEAKAGE_SHARE}} of net sales), spread fairly evenly across markets.
+Cancelled and suspected-fraud orders account for $1.4M (4.3% of net sales), spread fairly evenly across markets.
 
-![Commercial exposure](docs/images/04_commercial_exposure.png)
+<!-- ![Commercial exposure](docs/images/04_commercial_exposure.png) -->
 
 ## 5. Recommendations
 

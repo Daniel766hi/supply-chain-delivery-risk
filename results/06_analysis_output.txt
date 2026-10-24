@@ -1,0 +1,174 @@
+=== Q1. Headline KPIs (all orders; delivery KPIs on shipped orders) ===
+ total_orders | shipped_orders |  net_sales  |   profit   | profit_margin | late_rate | on_time_rate | avg_delay_days_when_late | net_sales_in_late_orders | share_of_shipped_sales_late 
+--------------+----------------+-------------+------------+---------------+-----------+--------------+--------------------------+--------------------------+-----------------------------
+        65752 |          62897 | 33054402.04 | 3966902.97 |        0.1200 |    0.5731 |       0.4269 |                     1.62 |              18082555.11 |                      0.5714
+
+=== Q2. Hypothesis screen: late-rate spread per candidate driver ===
+    dimension     | members | lowest_late_rate | highest_late_rate | spread 
+------------------+---------+------------------+-------------------+--------
+ Shipping mode    |       4 |           0.3985 |            1.0000 | 0.6015
+ Region           |      23 |           0.5258 |            0.6004 | 0.0746
+ Order year       |       4 |           0.5703 |            0.5866 | 0.0163
+ Market           |       5 |           0.5655 |            0.5768 | 0.0113
+ Payment type     |       4 |           0.5673 |            0.5748 | 0.0075
+ Customer segment |       3 |           0.5716 |            0.5774 | 0.0058
+
+=== Q2b. Late rate by market (detail) ===
+    market    | shipped_orders | late_orders | late_rate | rank_in_dimension 
+--------------+----------------+-------------+-----------+-------------------
+ Pacific Asia |          16853 |        9720 |    0.5768 |                 1
+ USCA         |           8178 |        4704 |    0.5752 |                 2
+ Europe       |          17763 |       10199 |    0.5742 |                 3
+ LATAM        |          16414 |        9339 |    0.5690 |                 4
+ Africa       |           3689 |        2086 |    0.5655 |                 5
+
+=== Q3. Promise vs actual lead time by shipping mode ===
+ shipping_mode  | promised_days | shipped_orders | share_of_orders | avg_actual_days | median_actual_days | p90_actual_days | min_actual_days | max_actual_days | late_rate | late_orders | share_of_all_late_orders | avg_delay_days_when_late 
+----------------+---------------+----------------+-----------------+-----------------+--------------------+-----------------+-----------------+-----------------+-----------+-------------+--------------------------+--------------------------
+ Same Day       |             0 |           3407 |          0.0542 |            0.48 |                  0 |               1 |               0 |               1 |    0.4837 |        1648 |                   0.0457 |                     1.00
+ First Class    |             1 |           9602 |          0.1527 |            2.00 |                  2 |               2 |               2 |               2 |    1.0000 |        9602 |                   0.2664 |                     1.00
+ Second Class   |             2 |          12256 |          0.1949 |            4.00 |                  4 |               6 |               2 |               6 |    0.7999 |        9803 |                   0.2719 |                     2.50
+ Standard Class |             4 |          37632 |          0.5983 |            3.99 |                  4 |               6 |               2 |               6 |    0.3985 |       14995 |                   0.4160 |                     1.50
+
+=== Q4a. Lead-time distribution by mode (cumulative_share = on-time rate at that promise) ===
+ shipping_mode  | promised_days | actual_days | orders | share_of_mode | cumulative_share 
+----------------+---------------+-------------+--------+---------------+------------------
+ Same Day       |             0 |           0 |   1759 |        0.5163 |           0.5163
+ Same Day       |             0 |           1 |   1648 |        0.4837 |           1.0000
+ First Class    |             1 |           2 |   9602 |        1.0000 |           1.0000
+ Second Class   |             2 |           2 |   2453 |        0.2001 |           0.2001
+ Second Class   |             2 |           3 |   2422 |        0.1976 |           0.3978
+ Second Class   |             2 |           4 |   2473 |        0.2018 |           0.5995
+ Second Class   |             2 |           5 |   2452 |        0.2001 |           0.7996
+ Second Class   |             2 |           6 |   2456 |        0.2004 |           1.0000
+ Standard Class |             4 |           2 |   7610 |        0.2022 |           0.2022
+ Standard Class |             4 |           3 |   7517 |        0.1998 |           0.4020
+ Standard Class |             4 |           4 |   7510 |        0.1996 |           0.6015
+ Standard Class |             4 |           5 |   7458 |        0.1982 |           0.7997
+ Standard Class |             4 |           6 |   7537 |        0.2003 |           1.0000
+
+=== Q4b. Promise scenarios per mode ===
+ shipping_mode  | current_promise_days | candidate_promise_days | days_added | projected_on_time_rate | is_current_promise 
+----------------+----------------------+------------------------+------------+------------------------+--------------------
+ Same Day       |                    0 |                      0 |          0 |                 0.5163 | t
+ Same Day       |                    0 |                      1 |          1 |                 1.0000 | f
+ Same Day       |                    0 |                      2 |          2 |                 1.0000 | f
+ Same Day       |                    0 |                      3 |          3 |                 1.0000 | f
+ Same Day       |                    0 |                      4 |          4 |                 1.0000 | f
+ Same Day       |                    0 |                      5 |          5 |                 1.0000 | f
+ Same Day       |                    0 |                      6 |          6 |                 1.0000 | f
+ Same Day       |                    0 |                      7 |          7 |                 1.0000 | f
+ First Class    |                    1 |                      0 |         -1 |                      0 | f
+ First Class    |                    1 |                      1 |          0 |                      0 | t
+ First Class    |                    1 |                      2 |          1 |                 1.0000 | f
+ First Class    |                    1 |                      3 |          2 |                 1.0000 | f
+ First Class    |                    1 |                      4 |          3 |                 1.0000 | f
+ First Class    |                    1 |                      5 |          4 |                 1.0000 | f
+ First Class    |                    1 |                      6 |          5 |                 1.0000 | f
+ First Class    |                    1 |                      7 |          6 |                 1.0000 | f
+ Second Class   |                    2 |                      0 |         -2 |                      0 | f
+ Second Class   |                    2 |                      1 |         -1 |                      0 | f
+ Second Class   |                    2 |                      2 |          0 |                 0.2001 | t
+ Second Class   |                    2 |                      3 |          1 |                 0.3978 | f
+ Second Class   |                    2 |                      4 |          2 |                 0.5995 | f
+ Second Class   |                    2 |                      5 |          3 |                 0.7996 | f
+ Second Class   |                    2 |                      6 |          4 |                 1.0000 | f
+ Second Class   |                    2 |                      7 |          5 |                 1.0000 | f
+ Standard Class |                    4 |                      0 |         -4 |                      0 | f
+ Standard Class |                    4 |                      1 |         -3 |                      0 | f
+ Standard Class |                    4 |                      2 |         -2 |                 0.2022 | f
+ Standard Class |                    4 |                      3 |         -1 |                 0.4020 | f
+ Standard Class |                    4 |                      4 |          0 |                 0.6015 | t
+ Standard Class |                    4 |                      5 |          1 |                 0.7997 | f
+ Standard Class |                    4 |                      6 |          2 |                 1.0000 | f
+ Standard Class |                    4 |                      7 |          3 |                 1.0000 | f
+
+=== Q4c. Network on-time rate if each mode is re-promised to the shortest promise that hits a target ===
+      policy      |                        promise_per_mode                         | network_on_time_rate | avg_days_added_per_order 
+------------------+-----------------------------------------------------------------+----------------------+--------------------------
+ Current promises | Same Day 0d, First Class 1d, Second Class 2d, Standard Class 4d |               0.4268 |                     0.00
+ Target 75%       | Same Day 1d, First Class 2d, Second Class 5d, Standard Class 5d |               0.8411 |                     1.39
+ Target 90%       | Same Day 1d, First Class 2d, Second Class 6d, Standard Class 6d |               1.0000 |                     2.18
+ Target 95%       | Same Day 1d, First Class 2d, Second Class 6d, Standard Class 6d |               1.0000 |                     2.18
+
+=== Q5. Monthly trend ===
+ order_month | orders | net_sales  | late_rate | mom_order_growth | late_rate_rolling_3m 
+-------------+--------+------------+-----------+------------------+----------------------
+ 2015-01-01  |   1787 |  945382.15 |    0.5622 |                  |               0.5622
+ 2015-02-01  |   1585 |  833012.42 |    0.5787 |          -0.1130 |               0.5699
+ 2015-03-01  |   1781 |  944050.10 |    0.5746 |           0.1237 |               0.5715
+ 2015-04-01  |   1710 |  912004.39 |    0.5656 |          -0.0399 |               0.5728
+ 2015-05-01  |   1776 |  943939.76 |    0.5754 |           0.0386 |               0.5719
+ 2015-06-01  |   1725 |  920242.05 |    0.5700 |          -0.0287 |               0.5704
+ 2015-07-01  |   1763 |  932936.78 |    0.5651 |           0.0220 |               0.5702
+ 2015-08-01  |   1762 |  925192.86 |    0.5757 |          -0.0006 |               0.5702
+ 2015-09-01  |   1706 |  914522.36 |    0.5820 |          -0.0318 |               0.5742
+ 2015-10-01  |   1775 |  943131.09 |    0.5737 |           0.0404 |               0.5771
+ 2015-11-01  |   1729 |  924602.56 |    0.5676 |          -0.0259 |               0.5744
+ 2015-12-01  |   1805 |  950526.91 |    0.5708 |           0.0440 |               0.5707
+ 2016-01-01  |   1772 |  940283.62 |    0.5860 |          -0.0183 |               0.5748
+ 2016-02-01  |   1650 |  870116.74 |    0.5673 |          -0.0688 |               0.5749
+ 2016-03-01  |   1764 |  921487.72 |    0.5806 |           0.0691 |               0.5783
+ 2016-04-01  |   1706 |  900492.91 |    0.5675 |          -0.0329 |               0.5720
+ 2016-05-01  |   1763 |  924978.21 |    0.5797 |           0.0334 |               0.5760
+ 2016-06-01  |   1690 |  901448.00 |    0.5986 |          -0.0414 |               0.5819
+ 2016-07-01  |   1758 |  939216.39 |    0.5548 |           0.0402 |               0.5775
+ 2016-08-01  |   1766 |  942408.93 |    0.5789 |           0.0046 |               0.5773
+ 2016-09-01  |   1730 |  900371.62 |    0.5703 |          -0.0204 |               0.5681
+ 2016-10-01  |   1776 |  941882.27 |    0.5731 |           0.0266 |               0.5741
+ 2016-11-01  |   1721 |  941197.35 |    0.5705 |          -0.0310 |               0.5713
+ 2016-12-01  |   1763 |  932112.88 |    0.5858 |           0.0244 |               0.5765
+ 2017-01-01  |   1745 |  925472.61 |    0.5579 |          -0.0102 |               0.5714
+ 2017-02-01  |   1614 |  891924.28 |    0.5715 |          -0.0751 |               0.5717
+ 2017-03-01  |   1782 |  942290.42 |    0.5754 |           0.1041 |               0.5682
+ 2017-04-01  |   1739 |  932318.19 |    0.5504 |          -0.0241 |               0.5657
+ 2017-05-01  |   1763 |  993199.04 |    0.5772 |           0.0138 |               0.5677
+ 2017-06-01  |   1676 |  927445.96 |    0.5676 |          -0.0493 |               0.5650
+ 2017-07-01  |   1776 |  992423.42 |    0.5706 |           0.0597 |               0.5718
+ 2017-08-01  |   1768 |  996507.87 |    0.5788 |          -0.0045 |               0.5724
+ 2017-09-01  |   1723 | 1027111.72 |    0.5738 |          -0.0255 |               0.5744
+ 2017-10-01  |   2101 |  966081.41 |    0.5632 |           0.2194 |               0.5713
+ 2017-11-01  |   2055 |  563393.47 |    0.5787 |          -0.0219 |               0.5717
+ 2017-12-01  |   2124 |  452741.53 |    0.5771 |           0.0336 |               0.5729
+ 2018-01-01  |   2123 |  297952.05 |    0.5866 |          -0.0005 |               0.5808
+
+=== Q5b. Volume step-up from Oct-2017: did the late rate move? ===
+         period          | months | avg_orders_per_month | late_rate | avg_order_value 
+-------------------------+--------+----------------------+-----------+-----------------
+ 1: Oct-2016 to Sep-2017 |     12 |                 1737 |    0.5711 |          548.97
+ 2: Oct-2017 to Jan-2018 |      4 |                 2101 |    0.5764 |          271.35
+
+=== Q6. Repeat purchase within 180 days by first-order delivery outcome ===
+    first_order_outcome    | customers | reordered_within_180d | repeat_rate_180d | avg_days_to_reorder 
+---------------------------+-----------+-----------------------+------------------+---------------------
+ First order late          |      6696 |                  3777 |           0.5641 |                77.5
+ First order on time/early |      5059 |                  2788 |           0.5511 |                77.0
+
+=== Q7. Revenue leakage (cancelled + suspected fraud) by market ===
+    market    | orders | suspected_fraud_orders | cancelled_orders | leaked_net_sales | leakage_share_of_sales | leakage_rank 
+--------------+--------+------------------------+------------------+------------------+------------------------+--------------
+ Europe       |  18561 |                    426 |              372 |        420829.00 |                 0.0431 |            1
+ LATAM        |  17181 |                    398 |              369 |        405914.92 |                 0.0440 |            2
+ Pacific Asia |  17577 |                    369 |              355 |        296972.37 |                 0.0399 |            3
+ USCA         |   8579 |                    209 |              192 |        206521.48 |                 0.0454 |            4
+ Africa       |   3854 |                     86 |               79 |         79499.52 |                 0.0386 |            5
+
+=== Q7b. Revenue leakage total ===
+ leaked_orders | suspected_fraud_orders | leaked_net_sales | leakage_share_of_sales 
+---------------+------------------------+------------------+------------------------
+          2855 |                   1488 |       1409737.29 |                 0.0426
+
+=== Q8. Top 10 categories by net sales in late orders ===
+    category_name     | department_name | shipped_orders | late_rate | net_sales  | late_net_sales | share_of_late_sales | late_sales_rank 
+----------------------+-----------------+----------------+-----------+------------+----------------+---------------------+-----------------
+ Fishing              | Fan Shop        |          14527 |    0.5734 | 5964765.28 |     3419519.14 |              0.1891 |               1
+ Cleats               | Apparel         |          19534 |    0.5748 | 3815653.36 |     2181928.50 |              0.1207 |               2
+ Camping & Hiking     | Fan Shop        |          11787 |    0.5700 | 3546428.19 |     2018201.97 |              0.1116 |               3
+ Cardio Equipment     | Footwear        |          10857 |    0.5716 | 3174909.18 |     1802598.51 |              0.0997 |               4
+ Women's Apparel      | Golf            |          17088 |    0.5690 | 2706768.50 |     1545062.00 |              0.0854 |               5
+ Water Sports         | Fan Shop        |          13174 |    0.5745 | 2679256.70 |     1534858.58 |              0.0849 |               6
+ Indoor/Outdoor Games | Fan Shop        |          15912 |    0.5727 | 2485575.60 |     1422487.56 |              0.0787 |               7
+ Men's Footwear       | Apparel         |          17954 |    0.5707 | 2483852.72 |     1415515.09 |              0.0783 |               8
+ Shop By Sport        | Golf            |           9700 |    0.5755 | 1126786.15 |      648153.86 |              0.0358 |               9
+ Computers            | Technology      |            425 |    0.5271 |  572527.50 |      301597.50 |              0.0167 |              10
+

@@ -1,0 +1,94 @@
+--- P1. Volume and grain: one row per order line? ---
+ rows_total | distinct_order_items | distinct_orders | distinct_customers | distinct_products 
+------------+----------------------+-----------------+--------------------+-------------------
+     180519 |               180519 |           65752 |              20652 |               118
+(1 row)
+
+--- P2. Empty values per column (only columns that have any) ---
+     column_name     | empty_values 
+---------------------+--------------
+ product_description |       180519
+ order_zipcode       |       155679
+ customer_zipcode    |            3
+ customer_lname      |            8
+(4 rows)
+
+--- P3. Redundant columns: pairs that always hold the same value ---
+ profit_cols_differ | net_sales_cols_differ | customer_cols_differ | product_cols_differ | category_cols_differ | price_cols_differ 
+--------------------+-----------------------+----------------------+---------------------+----------------------+-------------------
+                  0 |                     0 |                    0 |                   0 |                    0 |                 0
+(1 row)
+
+--- P4. Shipping attributes: constant within an order? ---
+ max_modes_per_order | max_actual_days_per_order | max_scheduled_days_per_order | max_delivery_status_per_order | max_markets_per_order 
+---------------------+---------------------------+------------------------------+-------------------------------+-----------------------
+                   1 |                         1 |                            1 |                             1 |                     1
+(1 row)
+
+--- P5. Promised (scheduled) days by shipping mode ---
+ shipping_mode  | scheduled_days | order_lines 
+----------------+----------------+-------------
+ Same Day       | 0              |        9737
+ First Class    | 1              |       27814
+ Second Class   | 2              |       35216
+ Standard Class | 4              |      107752
+(4 rows)
+
+--- P6. Does the source late flag equal actual > scheduled? ---
+  delivery_status  | order_lines | flag_mismatches 
+-------------------+-------------+-----------------
+ Advance shipping  |       41592 |               0
+ Late delivery     |       98977 |               0
+ Shipping canceled |        7754 |            4423
+ Shipping on time  |       32196 |               0
+(4 rows)
+
+--- P7. Order status vs delivery status ---
+  order_status   |  delivery_status  | orders 
+-----------------+-------------------+--------
+ CANCELED        | Shipping canceled |   1367
+ CLOSED          | Advance shipping  |   1777
+ CLOSED          | Late delivery     |   4112
+ CLOSED          | Shipping on time  |   1360
+ COMPLETE        | Advance shipping  |   5174
+ COMPLETE        | Late delivery     |  12521
+ COMPLETE        | Shipping on time  |   4021
+ ON_HOLD         | Advance shipping  |    858
+ ON_HOLD         | Late delivery     |   2045
+ ON_HOLD         | Shipping on time  |    721
+ PAYMENT_REVIEW  | Advance shipping  |    159
+ PAYMENT_REVIEW  | Late delivery     |    405
+ PAYMENT_REVIEW  | Shipping on time  |    140
+ PENDING         | Advance shipping  |   1797
+ PENDING         | Late delivery     |   4215
+ PENDING         | Shipping on time  |   1309
+ PENDING_PAYMENT | Advance shipping  |   3421
+ PENDING_PAYMENT | Late delivery     |   8256
+ PENDING_PAYMENT | Shipping on time  |   2705
+ PROCESSING      | Advance shipping  |   1941
+ PROCESSING      | Late delivery     |   4494
+ PROCESSING      | Shipping on time  |   1466
+ SUSPECTED_FRAUD | Shipping canceled |   1488
+(23 rows)
+
+--- P8. Date coverage ---
+     first_order     |     last_order      
+---------------------+---------------------
+ 2015-01-01 00:00:00 | 2018-01-31 23:38:00
+(1 row)
+
+--- P9. Shipping-date minus order-date vs the actual-days column ---
+ shipping_mode  | gap_days | order_lines 
+----------------+----------+-------------
+ First Class    |        0 |       27814
+ Same Day       |        0 |        9737
+ Second Class   |        0 |       35216
+ Standard Class |        0 |      107752
+(4 rows)
+
+--- P10. Text needing trimming (trailing spaces) ---
+ product_name_untrimmed | category_name_untrimmed 
+------------------------+-------------------------
+                   1774 |                    1475
+(1 row)
+
