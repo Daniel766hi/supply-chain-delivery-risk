@@ -1,0 +1,11 @@
+promo_size,response,on_time_pct,ci95_pp,vs_no_action_pp,p_value,same_day_dispatch_pct,stockout_days,bullwhip_ratio,peak_supplier_backlog_units,peak_dispatch_backlog_orders,days_to_clear
+1.5x,No action,22.8,0.8,0.0,,37.8,0.0,3.62,2740,254,40.1
+1.5x,Dispatch surge +50%,32.0,1.3,9.3,6.7e-17,58.7,10.9,3.62,2740,168,31.2
+1.5x,+ share promo plan with supplier,39.6,0.9,16.8,2.8e-27,83.7,6.7,1.0,1677,83,21.9
+1.5x,+ supplier flex capacity (1.6x),43.0,0.3,20.2,5.9e-29,100.0,0.0,1.0,614,0,0.0
+1.5x,+ quote +3 days on promo orders,59.7,0.3,36.9,1.1e-36,100.0,0.0,1.0,614,0,0.0
+2.0x,No action,2.3,0.1,0.0,,2.1,0.0,2.91,6212,638,81.4
+2.0x,Dispatch surge +50%,4.9,0.5,2.6,1.9e-13,6.0,12.2,2.91,6212,551,72.1
+2.0x,+ share promo plan with supplier,9.5,1.1,7.2,2.7e-14,11.0,10.8,1.0,4156,466,62.9
+2.0x,+ supplier flex capacity (1.6x),28.9,1.3,26.6,5.4e-28,47.1,2.0,1.0,2551,206,35.3
+2.0x,+ quote +3 days on promo orders,51.9,1.4,49.6,2.9e-34,47.1,2.0,1.0,2551,206,35.3

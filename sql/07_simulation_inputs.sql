@@ -33,6 +33,16 @@ WHERE f.is_cancelled = 0
   AND f.order_ts <  TIMESTAMP '2017-10-01'
 GROUP BY m.shipping_mode, m.promised_days, f.actual_days;
 
+-- Units per shipped order (sizes the inventory the DC must hold)
+CREATE OR REPLACE VIEW mart.vw_sim_units_per_order AS
+SELECT units, COUNT(*) AS orders
+FROM dw.fact_orders
+WHERE is_cancelled = 0
+  AND order_ts >= TIMESTAMP '2016-10-01'
+  AND order_ts <  TIMESTAMP '2017-10-01'
+GROUP BY units;
+
+\copy (SELECT * FROM mart.vw_sim_units_per_order ORDER BY units) TO 'simulation/inputs/units_per_order.csv' WITH (FORMAT csv, HEADER true)
 \copy (SELECT * FROM mart.vw_sim_daily_demand ORDER BY date) TO 'simulation/inputs/daily_demand.csv' WITH (FORMAT csv, HEADER true)
 \copy (SELECT * FROM mart.vw_sim_lead_time ORDER BY promised_days, actual_days) TO 'simulation/inputs/lead_time_distribution.csv' WITH (FORMAT csv, HEADER true)
 

@@ -1,0 +1,4 @@
+upstream,on_time_pct,stockout_days,avg_stock_days,bullwhip_ratio
+Unlimited supply (dispatch twin),42.9,0.0,,
+Reactive planning,42.9,0.0,1.99,5.01
+Promotion plan shared (promo-aware),42.9,0.0,2.01,1.0
