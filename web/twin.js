@@ -69,8 +69,10 @@
     return out;
   }
 
-  // ---- one replication -----------------------------------------------------
-  function runOnce(sc, cal, seed, keepPath) {
+  // ---- one replication, stepped a day at a time ------------------------------
+  // createRun() exposes the day loop so the 3D view can animate it; runOnce()
+  // drives the same loop to the end. Both draw random numbers in the same order.
+  function createRun(sc, cal, seed) {
     const rD = stream(seed, 1), rM = stream(seed, 2), rL = stream(seed, 3);
     const modes = cal.modes, nModes = modes.length;
     const promiseDays = modes.map(function (m) { return (sc.promise || cal.currentPromise)[m]; });
@@ -85,10 +87,11 @@
     const premium = sc.rule === "PREMIUM_FIRST";
     const queues = premium ? modes.map(function () { return { a: [], h: 0 }; }) : [{ a: [], h: 0 }];
     const path = new Int32Array(total);
-    let queued = 0;
+    let queued = 0, day = 0, shippedTotal = 0, onTimeTotal = 0;
 
-    for (let day = 0; day < total; day++) {
+    function step() {
       const inPromo = day >= sc.promoStart && day < promoEnd;
+      let arrived = 0;
       if (day < sc.horizon) {
         const mult = inPromo ? sc.promoMult : 1;
         const n = Math.round(daily[Math.floor(rD() * nDaily)] * mult);
@@ -103,43 +106,63 @@
           promise.push(promiseDays[m] + (isPromo ? sc.promoExtraDays : 0)); disp.push(-1);
           queues[premium ? m : 0].a.push(id); queued++;
         }
+        arrived = n;
       }
-      let cap = capBase === Infinity ? Infinity : Math.round(capBase * (inPromo ? sc.promoCapFactor : 1));
+      const capacity = capBase === Infinity ? Infinity : Math.round(capBase * (inPromo ? sc.promoCapFactor : 1));
+      let cap = capacity, shipped = 0, onTime = 0;
       for (let q = 0; q < queues.length && cap > 0; q++) {
         const Q = queues[q];
-        while (cap > 0 && Q.h < Q.a.length) { disp[Q.a[Q.h++]] = day; cap--; queued--; }
+        while (cap > 0 && Q.h < Q.a.length) {
+          const o = Q.a[Q.h++];
+          disp[o] = day; cap--; queued--; shipped++;
+          if (day - placed[o] + lead[o] <= promise[o]) onTime++;
+        }
       }
+      shippedTotal += shipped; onTimeTotal += onTime;
       path[day] = queued;
+      const out = { day: day, arrived: arrived, shipped: shipped, onTime: onTime, backlog: queued,
+                    capacity: capacity, inPromo: inPromo, shippedTotal: shippedTotal, onTimeTotal: onTimeTotal };
+      day++;
+      return out;
     }
 
-    // metrics over orders placed in the measurement window
-    const lo = sc.windowStart, hi = sc.windowStart + sc.windowDays;
-    let n = 0, ok = 0, waitSum = 0, nDisp = 0;
-    const modeN = new Array(nModes).fill(0), modeOk = new Array(nModes).fill(0);
-    for (let i = 0; i < placed.length; i++) {
-      if (placed[i] < lo || placed[i] >= hi) continue;
-      n++; modeN[mode[i]]++;
-      if (disp[i] >= 0) {
-        nDisp++; waitSum += disp[i] - placed[i];
-        if (disp[i] - placed[i] + lead[i] <= promise[i]) { ok++; modeOk[mode[i]]++; }
+    function summary(keepPath) {
+      // metrics over orders placed in the measurement window
+      const lo = sc.windowStart, hi = sc.windowStart + sc.windowDays;
+      let n = 0, ok = 0, waitSum = 0, nDisp = 0;
+      const modeN = new Array(nModes).fill(0), modeOk = new Array(nModes).fill(0);
+      for (let i = 0; i < placed.length; i++) {
+        if (placed[i] < lo || placed[i] >= hi) continue;
+        n++; modeN[mode[i]]++;
+        if (disp[i] >= 0) {
+          nDisp++; waitSum += disp[i] - placed[i];
+          if (disp[i] - placed[i] + lead[i] <= promise[i]) { ok++; modeOk[mode[i]]++; }
+        }
       }
+      let peak = 0, lastBusy = -1;
+      for (let d = 0; d < total; d++) {
+        if (path[d] > peak) peak = path[d];
+        if (d >= sc.promoStart && path[d] > 0) lastBusy = d;
+      }
+      const clear = lastBusy < 0 ? 0 : (path[total - 1] > 0 ? NaN : lastBusy + 1 - sc.promoStart);
+      return {
+        onTime: n ? ok / n : NaN,
+        byMode: modeN.map(function (c, i) { return c ? modeOk[i] / c : NaN; }),
+        wait: nDisp ? waitSum / nDisp : NaN,
+        peak: peak,
+        clear: clear,
+        orders: n,
+        path: keepPath ? path : null,
+      };
     }
-    let peak = 0, lastBusy = -1;
-    for (let d = 0; d < total; d++) {
-      if (path[d] > peak) peak = path[d];
-      if (d >= sc.promoStart && path[d] > 0) lastBusy = d;
-    }
-    const clear = lastBusy < 0 ? 0 : (path[total - 1] > 0 ? NaN : lastBusy + 1 - sc.promoStart);
 
-    return {
-      onTime: n ? ok / n : NaN,
-      byMode: modeN.map(function (c, i) { return c ? modeOk[i] / c : NaN; }),
-      wait: nDisp ? waitSum / nDisp : NaN,
-      peak: peak,
-      clear: clear,
-      orders: n,
-      path: keepPath ? path : null,
-    };
+    return { step: step, summary: summary, total: total, done: function () { return day >= total; } };
+  }
+
+  function runOnce(sc, cal, seed, keepPath) {
+    const run = createRun(sc, cal, seed);
+    while (!run.done()) run.step();
+    return run.summary(keepPath);
   }
 
   // ---- Monte Carlo -----------------------------------------------------------
@@ -206,7 +229,7 @@
   }
 
   return {
-    scenario: scenario, runOnce: runOnce, monteCarlo: monteCarlo, promiseForTarget: promiseForTarget,
+    scenario: scenario, runOnce: runOnce, createRun: createRun, monteCarlo: monteCarlo, promiseForTarget: promiseForTarget,
     stats: { mean: mean, sd: sd, quantile: quantile, ci95: ci95, share: share, pairedP: pairedP },
   };
 });

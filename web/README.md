@@ -1,12 +1,28 @@
 # Browser twin with Monte Carlo
 
-The fulfilment digital twin, running entirely in the browser: no Python, nothing to install.
+The fulfilment digital twin, running entirely in the browser: no Python, nothing to install. It has two parts on one page, driven by the same scenario settings: a 3D dispatch yard that plays out one simulated year, and a Monte Carlo study across hundreds of years.
 
-![Browser twin](screenshot.png)
+![3D dispatch yard](yard_screenshot.png)
+
+## Live dispatch yard (3D)
+
+A Three.js scene animates one replication of the simulation, day by day:
+
+| What you see | What it means in the model |
+|---|---|
+| Boxes on the yellow staging lane | Orders waiting for dispatch (1 box = 4 orders); the pile grows when daily orders exceed capacity |
+| Lit dock doors (12 in total) | That day's dispatch capacity at 8 orders per truck: 64 orders/day opens 8 doors, and surge capacity opens more |
+| Trucks backing in and pulling out | Orders shipped that day, one truck per 8 orders |
+| Door lamps | Green = truck loading, amber = door open and idle |
+| Panel and backlog strip | Orders placed and shipped today, orders waiting, doors open, on-time rate so far, and the backlog path for the whole year |
+
+Play, pause, jump to any day, replay the promotion, or change speed (1×–30×, 1× = 4 seconds per day). Drag to rotate and scroll to zoom. The yard replays the same random draws as the first Monte Carlo run, so the backlog strip matches the model exactly. If a browser has WebGL turned off, the page shows a note and the Monte Carlo study still works.
+
+## Monte Carlo study
+
+![Monte Carlo study](screenshot.png)
 
 **Open it:** double-click `web/index.html`. It's one self-contained file and needs an internet connection only for the chart library and fonts. Or publish it with GitHub Pages (below).
-
-## What it does
 
 Choose a promotion (size, length, spread), capacity (normal and surge), customer promise (policy, extra quoted days) and dispatch rule, or start from a preset. For each change the page runs a **Monte Carlo** study:
 
@@ -42,7 +58,8 @@ node web/check_model.js      # All 37 checks passed
 | File | Role |
 |---|---|
 | `app.html` | Page source (UI, charts) |
-| `twin.js` | Simulation engine + Monte Carlo + statistics (browser and Node) |
+| `twin.js` | Simulation engine (batch or one day at a time) + Monte Carlo + statistics (browser and Node) |
+| `yard.js` | 3D dispatch yard (Three.js), driven by `twin.js` day by day |
 | `calibration.js` | Generated calibration data |
 | `build.py` | Regenerates `calibration.js` and builds the one-file `index.html` (also copied to `docs/index.html`) |
 | `check_model.js` | Cross-check against the Python model |

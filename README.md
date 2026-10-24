@@ -124,9 +124,9 @@ The SQL analysis explains normal operations. A promotion is different: demand ri
 
 Each response was compared with "no action" over 30 paired replications. All gains are significant at p < 0.001 except premium-first at 1.5x.
 
-**Try it in the browser:** a [Monte Carlo version of the twin](web/README.md) runs entirely in the page. It shows the spread of outcomes across hundreds of simulated years, the chance of hitting service targets, and how reliably each response beats doing nothing. Open `web/index.html`, or the GitHub Pages link once Pages is enabled.
+**Try it in the browser:** a [3D dispatch yard and Monte Carlo version of the twin](web/README.md) run entirely in the page. Trucks back into the dock doors and the backlog piles up on the warehouse floor as the simulation plays out. It shows the spread of outcomes across hundreds of simulated years, the chance of hitting service targets, and how reliably each response beats doing nothing. Open `web/index.html`, or the GitHub Pages link once Pages is enabled.
 
-![Browser twin](web/screenshot.png)
+![3D dispatch yard](web/yard_screenshot.png)
 
 There is also a Python **interactive app** (`streamlit run simulation/app.py`) for testing any promotion and response combination live:
 
@@ -180,7 +180,7 @@ streamlit run simulation/app.py   # interactive twin
 │   ├── 06_business_analysis.sql   Q1–Q8 business questions
 │   └── 07_simulation_inputs.sql   calibration data for the digital twin
 ├── simulation/                    digital twin (SimPy): model, app, tests, experiments, results
-├── web/                           browser twin with Monte Carlo (one HTML file, no install)
+├── web/                           browser twin: 3D dispatch yard + Monte Carlo (one HTML file, no install)
 ├── results/                       query outputs (the evidence for the findings)
 ├── powerbi/                       .pbix dashboard
 ├── docs/

@@ -45,6 +45,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -99,6 +100,42 @@ input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
 select { font: 500 13px var(--f-body); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line);
          border-radius: 6px; padding: 6px 8px; width: 100%; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- 3D yard ---- */
+.stage-card { padding: 0; overflow: hidden; gap: 0; }
+.stage-head { padding: 16px 16px 12px; display: grid; gap: 4px; }
+.stage { position: relative; height: clamp(340px, 46vw, 560px); background: linear-gradient(180deg, #dfe6ec 0%, #cfd6dc 100%);
+         border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; }
+.hud { position: absolute; z-index: 2; pointer-events: none; }
+.hud-left { top: 12px; left: 12px; display: grid; gap: 6px; justify-items: start; }
+.hud-day { font-family: var(--f-display); font-weight: 700; font-size: 30px; line-height: 1; color: #15191c;
+           background: rgba(255,255,255,0.86); padding: 6px 10px; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.hud-pill { font: 600 11.5px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 8px; border-radius: 6px;
+            background: rgba(255,255,255,0.86); color: #4b5258; }
+.hud-pill.promo { background: #b42318; color: #fff; }
+.hud-pill.recover { background: #f1b434; color: #2a2205; }
+.hud-right { top: 12px; right: 12px; background: rgba(255,255,255,0.9); border-radius: 10px; padding: 10px 12px; min-width: 190px;
+             display: grid; grid-template-columns: auto auto; gap: 4px 14px; font-size: 12.5px; color: #4b5258; }
+.hud-right b { font: 600 13px var(--f-mono); color: #15191c; text-align: right; font-variant-numeric: tabular-nums; }
+.tag { position: absolute; z-index: 1; pointer-events: none; transform: translate(-50%, -100%); font: 500 11px/1 var(--f-mono);
+       color: #15191c; background: rgba(255,255,255,0.82); border-radius: 5px; padding: 4px 6px; white-space: nowrap; }
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; color: #4b5258; font-size: 14px; padding: 20px; text-align: center; }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 16px 6px; }
+.btn { font: 600 13px/1 var(--f-body); color: #fff; background: var(--accent); border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; min-width: 74px; }
+.btn.ghost { color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); }
+.transport input[type="range"] { flex: 1 1 200px; min-width: 140px; width: auto; }
+.transport .seg { min-width: 180px; }
+.spark-wrap { padding: 4px 16px 14px; display: grid; gap: 4px; }
+.spark-wrap canvas { width: 100%; height: 64px; display: block; }
+@media (max-width: 640px) {
+  .stage { height: 400px; }
+  .hud-right { top: auto; bottom: 8px; right: 8px; left: 8px; grid-template-columns: auto auto auto auto; min-width: 0;
+               font-size: 10.5px; gap: 1px 8px; padding: 6px 8px; white-space: nowrap; }
+  .hud-right b { font-size: 11.5px; }
+  .hud-right .opt { display: none; }
+  .hud-day { font-size: 24px; }
+  .tag { display: none; }
+}
 
 /* ---- results ---- */
 main.out { display: grid; gap: 18px; min-width: 0; }
@@ -251,8 +288,41 @@ footer.foot a { color: var(--ink-2); }
       </div>
     </aside>
 
-    <main class="out" aria-live="polite">
-      <div class="runbar"><span id="runText">Starting…</span><div class="meter" aria-hidden="true"><i id="meter"></i></div></div>
+    <main class="out">
+      <section class="card stage-card" aria-labelledby="yardTitle">
+        <div class="stage-head">
+          <h2 id="yardTitle">Live dispatch yard</h2>
+          <p class="sub">One simulated year, played day by day. Boxes on the staging floor are orders waiting to ship (1 box = 4 orders). Each truck carries 8 orders, and lit dock doors show the day's dispatch capacity. Drag to rotate, scroll to zoom.</p>
+        </div>
+        <div class="stage" id="yard">
+          <div class="hud hud-left"><div class="hud-day" id="hudDay">Day 0</div><div class="hud-pill" id="hudPhase">Normal day</div></div>
+          <div class="hud hud-right" aria-live="off">
+            <span>Orders today</span><b id="hArr">–</b>
+            <span>Shipped today</span><b id="hShip">–</b>
+            <span>Waiting</span><b id="hWait">–</b>
+            <span>Doors open</span><b id="hDoors">–</b>
+            <span class="opt">On time so far</span><b class="opt" id="hOn">–</b>
+          </div>
+          <div class="tag" id="tagStage">Orders waiting to ship</div>
+          <div class="tag" id="tagDocks">Dock doors</div>
+          <div class="tag" id="tagStore">Storage racks</div>
+          <div class="nogl" id="noGl" hidden>The 3D view needs WebGL, which this browser has turned off. The Monte Carlo analysis below still works.</div>
+        </div>
+        <div class="transport">
+          <button type="button" class="btn" id="playBtn">Pause</button>
+          <button type="button" class="btn ghost" id="restartBtn">Replay promotion</button>
+          <input type="range" id="scrub" min="0" max="374" value="0" aria-label="Simulation day">
+          <div class="seg" role="group" aria-label="Playback speed" id="speed">
+            <button type="button" data-v="1">1×</button><button type="button" data-v="4" aria-pressed="true">4×</button><button type="button" data-v="12">12×</button><button type="button" data-v="30">30×</button>
+          </div>
+        </div>
+        <div class="spark-wrap">
+          <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>Orders waiting to ship, this run</span><span><i class="sw box" style="background:var(--grid)"></i>Promotion</span></div>
+          <canvas id="spark" aria-label="Backlog over the simulated year"></canvas>
+        </div>
+      </section>
+
+      <div class="runbar" aria-live="polite"><span id="runText">Starting…</span><div class="meter" aria-hidden="true"><i id="meter"></i></div></div>
       <div class="verdict"><span class="badge" id="badge">Running</span><p id="verdict">Simulating…</p></div>
       <div class="tiles" id="tiles"></div>
 
@@ -337,8 +407,10 @@ footer.foot a { color: var(--ink-2); }
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="calibration.js"></script>
 <script src="twin.js"></script>
+<script src="yard.js"></script>
 <script>
 (function () {
   "use strict";
@@ -435,7 +507,7 @@ footer.foot a { color: var(--ink-2); }
 
   // ---------------------------------------------------------------- run
   let runId = 0, timer = null, last = null;
-  function schedule() { clearTimeout(timer); timer = setTimeout(run, 250); }
+  function schedule() { clearTimeout(timer); timer = setTimeout(() => { yardScenario(); run(); }, 250); }
   async function run() {
     const id = ++runId, reps = +$("reps").value, sc = buildScenarios();
     const t0 = performance.now();
@@ -696,12 +768,78 @@ footer.foot a { color: var(--ink-2); }
     });
   }
 
+  // ---------------------------------------------------------------- 3D yard
+  let yard = null, yardPath = null;
+  const YARD_START = PROMO_START - 4;
+  function hasWebGL() { try { const c = document.createElement("canvas"); return !!(window.WebGLRenderingContext && (c.getContext("webgl") || c.getContext("experimental-webgl"))); } catch (e) { return false; } }
+  const promoEndDay = () => PROMO_START + (state.spread ? 2 : 1) * state.promoDays;
+  function hudDay(d, hist) {
+    $("hudDay").textContent = `Day ${d.day}`;
+    const ph = $("hudPhase");
+    if (d.inPromo && state.promoMult > 1) { ph.textContent = `Promotion · ${(state.spread ? 1 + (state.promoMult - 1) / 2 : state.promoMult).toFixed(2).replace(/0$/, "")}× demand`; ph.className = "hud-pill promo"; }
+    else if (d.backlog > 0) { ph.textContent = "Working off the backlog"; ph.className = "hud-pill recover"; }
+    else { ph.textContent = "Normal day"; ph.className = "hud-pill"; }
+    $("hArr").textContent = d.arrived; $("hShip").textContent = d.shipped; $("hWait").textContent = d.backlog.toLocaleString("en-US");
+    $("hDoors").textContent = `${Math.min(12, Math.ceil((d.capacity === Infinity ? 96 : d.capacity) / 8))} of 12`;
+    $("hOn").textContent = d.shippedTotal ? fmtPct(d.onTimeTotal / d.shippedTotal) : "–";
+    $("scrub").value = d.day;
+    drawSpark(d.day);
+  }
+  function drawSpark(cursor) {
+    const cv = $("spark"), dpr = Math.min(2, window.devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !yardPath) return;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+    const n = yardPath.length, max = Math.max(10, ...yardPath), x = (d) => (d / (n - 1)) * w, y = (v) => h - 4 - (v / max) * (h - 14);
+    if (state.promoMult > 1) { g.fillStyle = css("--grid"); g.fillRect(x(PROMO_START), 0, x(promoEndDay()) - x(PROMO_START), h); }
+    g.strokeStyle = css("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(0, h - 4); g.lineTo(w, h - 4); g.stroke();
+    g.fillStyle = css("--accent-soft"); g.beginPath(); g.moveTo(0, y(0));
+    for (let d = 0; d < n; d++) g.lineTo(x(d), y(yardPath[d])); g.lineTo(w, y(0)); g.closePath(); g.fill();
+    g.strokeStyle = css("--accent"); g.lineWidth = 1.5; g.beginPath();
+    for (let d = 0; d < n; d++) (d ? g.lineTo : g.moveTo).call(g, x(d), y(yardPath[d])); g.stroke();
+    if (cursor != null) {
+      g.strokeStyle = css("--ink"); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x(cursor), 0); g.lineTo(x(cursor), h); g.stroke();
+      g.fillStyle = css("--ink"); g.font = `500 11px ${css("--f-mono")}`; g.textAlign = x(cursor) > w - 120 ? "right" : "left";
+      g.fillText(`day ${cursor}: ${yardPath[cursor].toLocaleString("en-US")} waiting`, x(cursor) + (g.textAlign === "left" ? 6 : -6), 12);
+    }
+    g.fillStyle = css("--muted"); g.textAlign = "right"; g.fillText(`peak ${Math.max(...yardPath).toLocaleString("en-US")}`, w - 4, h - 8);
+  }
+  const tags = [["tagStage", [0, 6, -18]], ["tagDocks", [33, 7.5, -2]], ["tagStore", [-30, 7, -31]]];
+  function setupYard() {
+    if (!window.THREE || !window.DispatchYard || !hasWebGL()) { $("noGl").hidden = false; return; }
+    yard = DispatchYard.mount($("yard"), {
+      twin: T, cal: CAL,
+      onDay: hudDay,
+      onState: (st) => { $("playBtn").textContent = st.playing ? "Pause" : "Play"; },
+      onFrame: () => { tags.forEach(([id, p]) => { const q = yard.project(p[0], p[1], p[2]); const e = $(id); e.style.left = q.x + "px"; e.style.top = q.y + "px"; }); },
+    });
+    yard.setSpeed(4);
+    window.dispatchYard = yard;   // handy for poking at the scene from the console
+    $("playBtn").addEventListener("click", () => yard.toggle());
+    $("restartBtn").addEventListener("click", () => { yard.seek(YARD_START); yard.play(); });
+    $("scrub").addEventListener("input", (e) => yard.seek(+e.target.value));
+    $("speed").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      $("speed").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      yard.setSpeed(+b.dataset.v);
+    }));
+    try { if (matchMedia("(prefers-reduced-motion: reduce)").matches) yard.pause(); } catch (e) {}
+  }
+  function yardScenario() {
+    const sc = buildScenarios().scenario;
+    yardPath = Array.from(T.runOnce(sc, CAL, 1000, true).path);
+    $("scrub").max = yardPath.length - 1;
+    if (yard) yard.setScenario(sc, { seed: 1000, startDay: YARD_START }); else drawSpark(null);
+  }
+  window.addEventListener("resize", () => drawSpark(+$("scrub").value));
+
   // re-render charts in the new palette when the theme changes
   const rerender = () => { if (last) render(last); };
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender); } catch (e) {}
   new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   syncControls();
+  setupYard();
+  yardScenario();
   run();
 })();
 </script>

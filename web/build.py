@@ -43,7 +43,7 @@ def write_calibration():
 
 def write_standalone():
     page = (WEB / "app.html").read_text(encoding="utf-8")
-    for name in ("calibration.js", "twin.js"):
+    for name in ("calibration.js", "twin.js", "yard.js"):
         tag = f'<script src="{name}"></script>'
         assert tag in page, f"{tag} missing from app.html"
         page = page.replace(tag, "<script>\n" + (WEB / name).read_text(encoding="utf-8") + "\n</script>")
